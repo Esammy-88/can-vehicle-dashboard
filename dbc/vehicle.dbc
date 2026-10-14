@@ -1,0 +1,117 @@
+VERSION "1.0"
+
+
+NS_ :
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	BA_DEF_DEF_
+
+BS_:
+
+BU_: ECM TCM BCM IPC DIAG
+
+
+BO_ 256 ENGINE_STATUS: 8 ECM
+ SG_ EngineRPM : 0|16@1+ (0.25,0) [0|16383.75] "rpm" TCM,IPC,DIAG
+ SG_ EngineLoad : 16|8@1+ (0.5,0) [0|100] "%" TCM,IPC,DIAG
+ SG_ ThrottlePosition : 24|8@1+ (0.5,0) [0|100] "%" TCM,IPC,DIAG
+ SG_ EngineRunning : 32|1@1+ (1,0) [0|1] "" TCM,IPC,DIAG
+ SG_ EngineState : 33|3@1+ (1,0) [0|7] "" IPC,DIAG
+ SG_ AliveCounter : 48|4@1+ (1,0) [0|15] "" DIAG
+ SG_ Checksum : 56|8@1+ (1,0) [0|255] "" DIAG
+
+BO_ 257 ENGINE_TEMPERATURE: 8 ECM
+ SG_ CoolantTemp : 0|8@1+ (1,-40) [-40|215] "degC" IPC,DIAG
+ SG_ OilTemp : 8|8@1+ (1,-40) [-40|215] "degC" IPC,DIAG
+ SG_ AliveCounter : 48|4@1+ (1,0) [0|15] "" DIAG
+ SG_ Checksum : 56|8@1+ (1,0) [0|255] "" DIAG
+
+BO_ 512 VEHICLE_STATUS: 8 TCM
+ SG_ VehicleSpeed : 0|16@1+ (0.01,0) [0|300] "km/h" ECM,BCM,IPC,DIAG
+ SG_ BrakeSwitch : 16|1@1+ (1,0) [0|1] "" ECM,BCM,IPC,DIAG
+ SG_ AliveCounter : 48|4@1+ (1,0) [0|15] "" DIAG
+ SG_ Checksum : 56|8@1+ (1,0) [0|255] "" DIAG
+
+BO_ 513 TRANSMISSION_STATUS: 8 TCM
+ SG_ GearSelector : 0|2@1+ (1,0) [0|3] "" ECM,IPC,DIAG
+ SG_ CurrentGear : 2|3@1+ (1,0) [0|6] "" ECM,IPC,DIAG
+ SG_ TransTemp : 8|8@1+ (1,-40) [-40|215] "degC" IPC,DIAG
+ SG_ TransFault : 16|1@1+ (1,0) [0|1] "" IPC,DIAG
+ SG_ ShiftInProgress : 17|1@1+ (1,0) [0|1] "" ECM,IPC,DIAG
+ SG_ AliveCounter : 48|4@1+ (1,0) [0|15] "" DIAG
+ SG_ Checksum : 56|8@1+ (1,0) [0|255] "" DIAG
+
+BO_ 768 BODY_STATUS: 8 BCM
+ SG_ FuelLevel : 0|8@1+ (0.5,0) [0|100] "%" IPC,DIAG
+ SG_ Headlights : 8|2@1+ (1,0) [0|2] "" IPC,DIAG
+ SG_ TurnIndicator : 10|2@1+ (1,0) [0|3] "" IPC,DIAG
+ SG_ DoorFrontLeftOpen : 12|1@1+ (1,0) [0|1] "" IPC,DIAG
+ SG_ DoorFrontRightOpen : 13|1@1+ (1,0) [0|1] "" IPC,DIAG
+ SG_ DoorRearLeftOpen : 14|1@1+ (1,0) [0|1] "" IPC,DIAG
+ SG_ DoorRearRightOpen : 15|1@1+ (1,0) [0|1] "" IPC,DIAG
+ SG_ SeatbeltFastened : 16|1@1+ (1,0) [0|1] "" IPC,DIAG
+ SG_ BrakeLights : 17|1@1+ (1,0) [0|1] "" IPC,DIAG
+ SG_ AliveCounter : 48|4@1+ (1,0) [0|15] "" DIAG
+ SG_ Checksum : 56|8@1+ (1,0) [0|255] "" DIAG
+
+BO_ 1024 DASHBOARD_STATUS: 8 IPC
+ SG_ WarnLowFuel : 0|1@1+ (1,0) [0|1] "" DIAG
+ SG_ WarnEngineOverheat : 1|1@1+ (1,0) [0|1] "" DIAG
+ SG_ WarnHighOilTemp : 2|1@1+ (1,0) [0|1] "" DIAG
+ SG_ WarnCanCommLost : 3|1@1+ (1,0) [0|1] "" DIAG
+ SG_ WarnEngineFault : 4|1@1+ (1,0) [0|1] "" DIAG
+ SG_ WarnTransFault : 5|1@1+ (1,0) [0|1] "" DIAG
+ SG_ WarnDoorOpen : 6|1@1+ (1,0) [0|1] "" DIAG
+ SG_ WarnSeatbelt : 7|1@1+ (1,0) [0|1] "" DIAG
+ SG_ MasterSeverity : 8|2@1+ (1,0) [0|3] "" DIAG
+ SG_ Odometer : 16|24@1+ (0.1,0) [0|1677721.5] "km" DIAG
+ SG_ AliveCounter : 48|4@1+ (1,0) [0|15] "" DIAG
+ SG_ Checksum : 56|8@1+ (1,0) [0|255] "" DIAG
+
+BO_ 1280 DIAGNOSTIC_STATUS: 8 DIAG
+ SG_ EcmOnline : 0|1@1+ (1,0) [0|1] "" IPC
+ SG_ TcmOnline : 1|1@1+ (1,0) [0|1] "" IPC
+ SG_ BcmOnline : 2|1@1+ (1,0) [0|1] "" IPC
+ SG_ IpcOnline : 3|1@1+ (1,0) [0|1] "" IPC
+ SG_ ActiveDtcCount : 8|8@1+ (1,0) [0|255] "" IPC
+ SG_ LastDtc : 16|16@1+ (1,0) [0|65535] "" IPC
+ SG_ AliveCounter : 48|4@1+ (1,0) [0|15] "" IPC
+ SG_ Checksum : 56|8@1+ (1,0) [0|255] "" IPC
+
+
+CM_ BU_ ECM "Engine Control Module";
+CM_ BU_ TCM "Transmission Control Module";
+CM_ BU_ BCM "Body Control Module";
+CM_ BU_ IPC "Instrument Panel Cluster (dashboard ECU)";
+CM_ BU_ DIAG "Diagnostic monitor: ECU health and DTC summary";
+CM_ BO_ 256 "Engine speed, load, throttle and operating state";
+CM_ BO_ 257 "Engine coolant and oil temperatures";
+CM_ BO_ 512 "Vehicle speed (transmission output shaft) and brake switch";
+CM_ BO_ 513 "Selector position, engaged gear and transmission temperature";
+CM_ BO_ 768 "Fuel level, lights, doors, seatbelt and turn indicators";
+CM_ BO_ 1024 "Warning lamps and odometer shown by the instrument cluster";
+CM_ BO_ 1280 "ECU online status and diagnostic trouble code summary";
+CM_ SG_ 256 EngineState "Engine state machine state";
+CM_ SG_ 513 CurrentGear "Engaged gear; 0 when no forward gear is engaged (P/R/N)";
+CM_ SG_ 1280 LastDtc "Most recent DTC, OBD-II style code packed as 16 bits (e.g. 0x0217 = P0217)";
+CM_ SG_ 256 AliveCounter "Rolling 0-15 counter, incremented every transmission";
+CM_ SG_ 256 Checksum "(sum of bytes 0-6 + ID low byte + ID high byte) mod 256, XOR 0xFF";
+
+BA_DEF_ BO_ "GenMsgCycleTime" INT 0 65535;
+BA_DEF_DEF_ "GenMsgCycleTime" 0;
+
+BA_ "GenMsgCycleTime" BO_ 256 100;
+BA_ "GenMsgCycleTime" BO_ 257 500;
+BA_ "GenMsgCycleTime" BO_ 512 50;
+BA_ "GenMsgCycleTime" BO_ 513 100;
+BA_ "GenMsgCycleTime" BO_ 768 200;
+BA_ "GenMsgCycleTime" BO_ 1024 200;
+BA_ "GenMsgCycleTime" BO_ 1280 1000;
+
+VAL_ 256 EngineState 0 "OFF" 1 "STARTING" 2 "IDLE" 3 "ACCELERATING" 4 "CRUISING" 5 "DECELERATING" 6 "OVERHEAT" 7 "FAULT" ;
+VAL_ 513 GearSelector 0 "P" 1 "R" 2 "N" 3 "D" ;
+VAL_ 768 Headlights 0 "OFF" 1 "LOW" 2 "HIGH" ;
+VAL_ 768 TurnIndicator 0 "OFF" 1 "LEFT" 2 "RIGHT" 3 "HAZARD" ;
+VAL_ 1024 MasterSeverity 0 "NONE" 1 "INFO" 2 "WARNING" 3 "CRITICAL" ;
