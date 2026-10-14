@@ -5,9 +5,9 @@ Transmission, Body, Instrument Cluster) exchange DBC-encoded CAN 2.0 frames over
 a virtual bus, and a React dashboard visualises the traffic, vehicle state,
 faults and diagnostics in real time. No physical hardware is required.
 
-> **Status:** Phase 2 — CAN layer. The DBC network definition, DBC-driven
-> encoding/decoding (with alive counter and checksum) and the SocketCAN /
-> software bus abstraction are done and tested. ECUs and the simulation come next.
+> **Status:** Phase 3 — ECU network. Engine, Transmission and Body ECUs run
+> over the CAN bus against a simplified vehicle physics model. Try it with
+> `python scripts/start_simulation.py`. Live dashboard streaming comes next.
 
 ## Architecture
 
@@ -68,7 +68,8 @@ backend on port 8000.
 
 On Linux, create `vcan0` with `./scripts/setup_vcan.sh` (remove it with
 `--remove`). Message IDs, signals and cycle times are documented in
-[docs/can-protocol.md](docs/can-protocol.md).
+[docs/can-protocol.md](docs/can-protocol.md); ECU behaviour and the physics
+model are in [docs/ecu-design.md](docs/ecu-design.md).
 
 ## Testing
 
