@@ -95,6 +95,29 @@ coasting off-throttle, IDLE when stationary, otherwise CRUISING.
 The fuel reading is noisy (slosh) and damped with a 2 s filter, like a real
 fuel gauge.
 
+## Instrument Panel Cluster (IPC, dashboard ECU)
+
+| | |
+|---|---|
+| Inputs | none wired: everything comes from CAN |
+| From CAN | all ECM, TCM and BCM messages |
+| Transmits | `DASHBOARD_STATUS` (200 ms): warning lamps, master severity, odometer |
+
+The IPC integrates its own odometer from received vehicle speed and evaluates
+the warnings below. Its view is what the web dashboard displays (streamed over
+`/ws/telemetry`), so the browser only ever sees data that crossed the bus.
+
+| Warning | Condition | Severity |
+|---|---|---|
+| CAN_COMM_LOST | an ECU's messages missing for 3 cycles (after a 1 s start-up grace) | CRITICAL |
+| ENGINE_FAULT | `EngineState` = FAULT | CRITICAL |
+| ENGINE_OVERHEAT | `EngineState` = OVERHEAT or coolant ≥ 110 °C | CRITICAL |
+| TRANSMISSION_FAULT | `TransFault` = 1 | CRITICAL |
+| HIGH_OIL_TEMP | oil ≥ 130 °C | WARNING |
+| LOW_FUEL | fuel < 15 % | WARNING |
+| DOOR_OPEN | any door open | INFO stationary, WARNING above 5 km/h |
+| SEATBELT | unbuckled with engine running | INFO stationary, WARNING above 10 km/h |
+
 ## Vehicle physics (simplified)
 
 This is a **believable simplified model, not a validated vehicle model**:

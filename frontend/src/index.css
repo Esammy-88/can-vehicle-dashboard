@@ -1,7 +1,22 @@
 @import "tailwindcss";
 
 @theme {
+  --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Cascadia Mono", "Consolas", ui-monospace, monospace;
+
+  /* Reserved status colours: only for state, always paired with an icon + label. */
+  --color-status-good: #0ca30c;
+  --color-status-warning: #fab219;
+  --color-status-serious: #ec835a;
+  --color-status-critical: #d03b3b;
+
+  /* Gauge fill and its dim same-hue track. */
+  --color-accent: #38bdf8;
+  --color-accent-track: #0c2a3d;
+
+  /* Telltale lamp colours follow automotive convention (ISO 2575). */
+  --color-lamp-green: #22c55e;
+  --color-lamp-blue: #3b82f6;
 }
 
 html,
@@ -11,5 +26,21 @@ body,
 }
 
 body {
-  @apply bg-slate-950 text-slate-200 antialiased;
+  @apply bg-slate-950 font-sans text-slate-200 antialiased;
+}
+
+/* Turn indicators flash at ~1.5 Hz like a real flasher relay. */
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.15;
+  }
+}
+
+.animate-blink {
+  animation: blink 0.66s steps(1, end) infinite;
 }

@@ -16,6 +16,7 @@ from app.can.bus import BusFactory
 from app.can.decoder import CanCodec
 from app.ecus.base import Ecu
 from app.ecus.body import BodyEcu
+from app.ecus.dashboard import DashboardEcu
 from app.ecus.engine import EngineEcu
 from app.ecus.transmission import TransmissionEcu
 from app.simulation.vehicle import Actuators, DriverInputs, VehicleModel
@@ -33,7 +34,9 @@ class Simulator:
         self.engine = EngineEcu(factory.open(), codec, self.vehicle, self.driver, rng)
         self.transmission = TransmissionEcu(factory.open(), codec, self.vehicle, self.driver, rng)
         self.body = BodyEcu(factory.open(), codec, self.vehicle, self.driver, rng)
-        self.ecus: list[Ecu] = [self.engine, self.transmission, self.body]
+        # The cluster steps last so it sees frames sent earlier in the same tick.
+        self.dashboard = DashboardEcu(factory.open(), codec)
+        self.ecus: list[Ecu] = [self.engine, self.transmission, self.body, self.dashboard]
         self.crashed: set[str] = set()
         self._ticks = 0
 

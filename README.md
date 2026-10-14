@@ -5,9 +5,10 @@ Transmission, Body, Instrument Cluster) exchange DBC-encoded CAN 2.0 frames over
 a virtual bus, and a React dashboard visualises the traffic, vehicle state,
 faults and diagnostics in real time. No physical hardware is required.
 
-> **Status:** Phase 3 — ECU network. Engine, Transmission and Body ECUs run
-> over the CAN bus against a simplified vehicle physics model. Try it with
-> `python scripts/start_simulation.py`. Live dashboard streaming comes next.
+> **Status:** Phase 4 — live dashboard. Engine, Transmission, Body and
+> Instrument Cluster ECUs run over the CAN bus against a simplified vehicle
+> physics model, and the web dashboard shows the cluster's view live and lets
+> you drive the car. CAN monitor and graphs come next.
 
 ## Architecture
 
@@ -56,7 +57,31 @@ npm run dev
 ```
 
 Open http://localhost:5173. The dev server proxies `/api` and `/ws` to the
-backend on port 8000.
+backend on port 8000 (set `BACKEND_URL` to use another backend address).
+
+The simulation starts with the backend. To drive: turn the **ignition** on,
+hold some **brake** and select **D** (the gearbox has a shift lock), release
+the brake and add **throttle**.
+
+To run the ECU network without a browser, printing values decoded from CAN:
+
+```bash
+python scripts/start_simulation.py          # scripted ~60 s drive in real time
+python scripts/can_demo.py                  # a few frames, including bad ones
+```
+
+### API
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/health` | Backend status, configured and resolved CAN backend |
+| `GET /api/state` | Snapshot: cluster view, driver controls, simulation status |
+| `POST /api/controls` | Partial update of driver inputs (ignition, throttle, brake, gear, lights, doors, seatbelt, indicators) |
+| `POST /api/simulation/{start,pause,reset}` | Simulation control |
+| `PUT /api/simulation/speed` | `{"factor": 0.5 \| 1 \| 2 \| 5}` |
+| `WS /ws/telemetry` | The same snapshot pushed at 20 Hz |
+
+Interactive API docs are at http://localhost:8000/docs.
 
 ### CAN mode
 
@@ -78,6 +103,14 @@ pytest
 ruff check .
 cd frontend && npm run build
 ```
+
+## Dashboard
+
+The dashboard renders what the **instrument cluster ECU** decoded from CAN,
+never simulation internals: speed and RPM gauges, gear and engine state,
+coolant / oil / transmission temperature and fuel meters, telltale lamps, and
+a warning panel (INFO / WARNING / CRITICAL). If an ECU goes silent its values
+blank out and a *CAN communication lost* warning appears.
 
 ## Screenshots
 

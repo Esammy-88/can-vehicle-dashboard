@@ -42,6 +42,7 @@ def test_messages_are_sent_at_dbc_cycle_times(
         "ENGINE_STATUS": 20,  # 100 ms
         "TRANSMISSION_STATUS": 20,  # 100 ms
         "BODY_STATUS": 10,  # 200 ms
+        "DASHBOARD_STATUS": 10,  # 200 ms
         "ENGINE_TEMPERATURE": 4,  # 500 ms
     }
 
