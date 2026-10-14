@@ -74,7 +74,8 @@ class EngineEcu(Ecu):
     def update(self, now: float) -> None:
         prev_rpm, prev_speed = self.rpm, self.vehicle_speed_kmh
         self.rpm = self._rpm_sensor.read()
-        self.load = self._load_sensor.read()
+        # Load is derived from airflow; a stopped engine has none, so no sensor noise either.
+        self.load = self._load_sensor.read() if self.rpm > STALL_RPM else 0.0
         self.coolant_c = self._coolant_sensor.read()
         self.oil_c = self._oil_sensor.read()
         vehicle = self.latest("VEHICLE_STATUS", now)

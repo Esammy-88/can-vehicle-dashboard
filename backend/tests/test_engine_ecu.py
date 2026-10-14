@@ -98,3 +98,9 @@ def test_engine_learns_vehicle_speed_over_can(sim: Simulator) -> None:
     sim.run_for(5.0)
 
     assert abs(sim.engine.vehicle_speed_kmh - sim.vehicle.speed_kmh) < 2.0
+
+
+def test_stopped_engine_reports_zero_load(sim: Simulator) -> None:
+    sim.run_for(1.0)
+
+    assert sim.engine.signals_for("ENGINE_STATUS")["EngineLoad"] == 0.0

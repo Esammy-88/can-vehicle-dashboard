@@ -1,7 +1,7 @@
 """FastAPI application entrypoint.
 
 Run from the repository root:
-    uvicorn app.main:app --app-dir backend --reload
+    uvicorn app.main:app --app-dir backend --reload --reload-dir backend
 """
 
 from __future__ import annotations

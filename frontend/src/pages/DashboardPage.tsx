@@ -68,7 +68,7 @@ export default function DashboardPage() {
         <div className="border-b border-status-warning/40 bg-slate-900 px-6 py-2 text-sm text-slate-300">
           Backend unreachable — reconnecting. Start it with{" "}
           <code className="font-mono text-slate-100">
-            uvicorn app.main:app --app-dir backend --reload
+            uvicorn app.main:app --app-dir backend --reload --reload-dir backend
           </code>
         </div>
       )}

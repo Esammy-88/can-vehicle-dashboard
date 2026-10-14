@@ -46,7 +46,7 @@ npm install
 Start the backend (from the repository root):
 
 ```bash
-uvicorn app.main:app --app-dir backend --reload
+uvicorn app.main:app --app-dir backend --reload --reload-dir backend
 ```
 
 Start the frontend in a second terminal:
