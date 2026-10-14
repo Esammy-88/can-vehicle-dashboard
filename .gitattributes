@@ -1,0 +1,7 @@
+# Keep LF everywhere so shell scripts (setup_vcan.sh) run under Linux/WSL2.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
+*.pcap binary
+*.pcapng binary

@@ -1,0 +1,1 @@
+"""CAN vehicle dashboard backend."""
