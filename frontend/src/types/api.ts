@@ -74,3 +74,68 @@ export interface Snapshot {
 export type ControlsUpdate = Partial<Omit<Controls, "doors_open">> & {
   doors_open?: Partial<Record<DoorName, boolean>>;
 };
+
+/** One graph sample, taken from the cluster view every 0.2 s of sim time. */
+export interface HistorySample {
+  seq: number;
+  t: number;
+  can_rate: number;
+  speed_kmh: number | null;
+  rpm: number | null;
+  coolant_c: number | null;
+  oil_c: number | null;
+  fuel_pct: number | null;
+  engine_load: number | null;
+}
+
+export interface TelemetryMessage extends Snapshot {
+  samples: HistorySample[];
+  reset: boolean;
+}
+
+export type FrameError = "UNKNOWN_ID" | "BAD_DLC" | "CHECKSUM" | "MALFORMED" | "ERROR_FRAME";
+
+export interface CanFrame {
+  seq: number;
+  t: number;
+  id: number;
+  name: string | null;
+  sender: string;
+  dlc: number;
+  data: string;
+  signals: Record<string, number | string>;
+  error: FrameError | null;
+  error_detail: string | null;
+}
+
+export interface IdStats {
+  id: number;
+  name: string | null;
+  sender: string;
+  cycle_ms: number | null;
+  rate: number;
+  count: number;
+  errors: number;
+  timeouts: number;
+  timed_out: boolean;
+  last_seen_ago_s: number | null;
+}
+
+export interface CanStats {
+  messages_per_s: number;
+  bus_load_pct: number;
+  bitrate_bps: number;
+  total_frames: number;
+  errors: number;
+  errors_by_type: Partial<Record<FrameError, number>>;
+  timeouts: number;
+  active_nodes: string[];
+  per_ecu: { ecu: string; rate: number }[];
+  per_id: IdStats[];
+}
+
+export interface CanStreamMessage {
+  frames: CanFrame[];
+  stats: CanStats;
+  reset: boolean;
+}

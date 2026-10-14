@@ -4,10 +4,9 @@ import Gauge from "../components/Gauge";
 import GearDisplay from "../components/GearDisplay";
 import { FuelIcon, GearboxIcon, TemperatureIcon } from "../components/Icons";
 import LinearMeter, { type Tone } from "../components/LinearMeter";
-import StatusIndicator from "../components/StatusIndicator";
 import Telltales from "../components/Telltales";
 import WarningPanel from "../components/WarningPanel";
-import { useTelemetry } from "../hooks/useTelemetry";
+import type { Snapshot } from "../types/api";
 
 // Thresholds mirror the cluster ECU's warning rules (backend/app/ecus/dashboard.py).
 const coolantTone = (v: number): Tone => (v >= 110 ? "critical" : v >= 105 ? "warning" : "normal");
@@ -27,52 +26,13 @@ function Stat({ label, value, unit }: { label: string; value: string; unit?: str
   );
 }
 
-export default function DashboardPage() {
-  const { connection, snapshot } = useTelemetry();
+export default function DashboardPage({ snapshot }: { snapshot: Snapshot | null }) {
   const c = snapshot?.cluster ?? null;
   const fmt = (v: number | null | undefined, digits = 0) =>
     v === null || v === undefined ? "--" : v.toFixed(digits);
 
   return (
-    <div className="min-h-full">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 px-6 py-4">
-        <div>
-          <h1 className="text-lg font-semibold tracking-wide text-slate-100">CAN Vehicle Dashboard</h1>
-          <p className="text-xs text-slate-500">Software-in-the-loop CAN network simulation</p>
-        </div>
-        <div className="flex items-center gap-6 text-xs text-slate-500">
-          {snapshot && (
-            <span>
-              CAN <span className="text-slate-300">{snapshot.can_mode.toUpperCase()}</span>
-              {snapshot.can_mode === "auto" && (
-                <>
-                  {" → "}
-                  <span className="text-slate-300">{snapshot.can_backend.toUpperCase()}</span>
-                </>
-              )}
-            </span>
-          )}
-          {snapshot && (
-            <span>
-              Simulation{" "}
-              <span className="text-slate-300">
-                {snapshot.simulation.running ? "running" : "paused"} · {snapshot.simulation.speed}×
-              </span>
-            </span>
-          )}
-          <StatusIndicator state={connection} />
-        </div>
-      </header>
-
-      {connection === "closed" && (
-        <div className="border-b border-status-warning/40 bg-slate-900 px-6 py-2 text-sm text-slate-300">
-          Backend unreachable — reconnecting. Start it with{" "}
-          <code className="font-mono text-slate-100">
-            uvicorn app.main:app --app-dir backend --reload --reload-dir backend
-          </code>
-        </div>
-      )}
-
+    <div>
       <div className="grid gap-6 p-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <main className="space-y-6">
           <section className="rounded-xl border border-slate-800 bg-slate-900/40 p-6">

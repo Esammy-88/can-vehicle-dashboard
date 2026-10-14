@@ -1,6 +1,7 @@
 import pytest
 
 from app.simulation import physics as p
+from app.simulation.sensors import Sensor
 from app.simulation.vehicle import Actuators, DriverInputs, VehicleModel
 
 
@@ -116,3 +117,11 @@ def test_engine_stops_when_tank_runs_dry() -> None:
     run_plant(plant, Actuators(fuel_enabled=True), DriverInputs(), 2.0)
 
     assert not plant.engine_running
+
+
+def test_pulse_sensor_reads_exact_zero_when_stationary() -> None:
+    sensor = Sensor(lambda: 0.0, noise_std=1.0, minimum=0.0, zero_below=0.05)
+    moving = Sensor(lambda: 50.0, noise_std=1.0, minimum=0.0, zero_below=0.05)
+
+    assert {sensor.read() for _ in range(50)} == {0.0}
+    assert len({moving.read() for _ in range(50)}) > 1

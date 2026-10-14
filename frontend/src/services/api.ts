@@ -24,7 +24,7 @@ export function setSimulationSpeed(factor: SpeedFactor): Promise<SimulationStatu
   return send("PUT", "/api/simulation/speed", { factor });
 }
 
-export function telemetryUrl(): string {
+export function streamUrl(path: "/ws/telemetry" | "/ws/can"): string {
   const scheme = window.location.protocol === "https:" ? "wss" : "ws";
-  return `${scheme}://${window.location.host}/ws/telemetry`;
+  return `${scheme}://${window.location.host}${path}`;
 }

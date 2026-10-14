@@ -78,6 +78,20 @@ of these errors, so the CAN monitor and diagnostics can report it:
 | MALFORMED | cantools could not decode the payload |
 | ERROR_FRAME | CAN error frame |
 
+## Bus statistics
+
+A passive monitor node (`backend/app/monitoring/bus_monitor.py`) listens on its
+own bus instance and computes, over a sliding 1 s window of simulation time:
+
+- messages per second, overall, per CAN ID and per sending ECU;
+- **bus load** = bits on the wire per second / 500 kbit/s, where a standard
+  data frame is `47 + 8 × DLC` bits (bit stuffing ignored). The full network is
+  52 frames/s × 111 bits ≈ 5.8 kbit/s, about 1.2 % load;
+- error counts by decode error type;
+- **timeouts**: a message counts one timeout when it has been missing for more
+  than 3 of its DBC cycle times, and clears when it is seen again;
+- active nodes: ECUs heard within the window.
+
 ## Bus backends
 
 | `CAN_MODE` | Behaviour |

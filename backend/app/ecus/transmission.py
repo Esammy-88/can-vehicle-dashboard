@@ -58,7 +58,9 @@ class TransmissionEcu(Ecu):
     ) -> None:
         super().__init__(bus, codec)
         self.driver = driver
-        self._speed_sensor = Sensor(lambda: plant.speed_kmh, 0.05, rng, minimum=0.0)
+        self._speed_sensor = Sensor(
+            lambda: plant.speed_kmh, 0.05, rng, minimum=0.0, zero_below=0.05
+        )
         self._temp_sensor = Sensor(lambda: plant.trans_c, 0.2, rng)
 
         self.selector = Selector.P

@@ -114,5 +114,63 @@ def test_websocket_streams_snapshots(client: TestClient) -> None:
         first = ws.receive_json()
         second = ws.receive_json()
 
-    assert set(first) == {"simulation", "can_backend", "can_mode", "cluster", "controls"}
+    assert {"simulation", "can_backend", "can_mode", "cluster", "controls", "samples"} <= set(first)
     assert second["simulation"]["time_s"] >= first["simulation"]["time_s"]
+
+
+def test_can_stats_endpoint(client: TestClient) -> None:
+    time.sleep(1.2)
+
+    stats = client.get("/api/can/stats").json()
+
+    assert stats["messages_per_s"] > 0
+    assert {"ECM", "TCM", "BCM", "IPC"} <= set(stats["active_nodes"])
+    assert len(stats["per_id"]) >= 6
+
+
+def test_can_frames_and_history_endpoints(client: TestClient) -> None:
+    time.sleep(1.0)
+
+    frames = client.get("/api/can/frames", params={"limit": 5}).json()
+    history = client.get("/api/history", params={"seconds": 30}).json()
+
+    assert len(frames) == 5
+    assert {"id", "name", "data", "signals"} <= set(frames[0])
+    assert history and "speed_kmh" in history[-1]
+    assert client.get("/api/history", params={"seconds": 999}).status_code == 422
+
+
+def test_telemetry_stream_sends_incremental_samples(client: TestClient) -> None:
+    time.sleep(0.6)
+    with client.websocket_connect("/ws/telemetry") as ws:
+        first = ws.receive_json()
+        time.sleep(0.5)
+        later = [ws.receive_json() for _ in range(3)]
+
+    assert first["reset"] is True
+    assert len(first["samples"]) >= 2  # backlog on connect
+    seqs = [s["seq"] for msg in [first, *later] for s in msg["samples"]]
+    assert seqs == sorted(set(seqs))  # no duplicates, in order
+    assert all(msg["reset"] is False for msg in later)
+
+
+def test_can_stream_sends_frames_and_stats(client: TestClient) -> None:
+    time.sleep(0.5)
+    with client.websocket_connect("/ws/can") as ws:
+        first = ws.receive_json()
+        second = ws.receive_json()
+
+    assert first["reset"] is True
+    assert first["frames"]
+    assert "bus_load_pct" in first["stats"]
+    first_seqs = {f["seq"] for f in first["frames"]}
+    assert not first_seqs & {f["seq"] for f in second["frames"]}
+
+
+def test_stream_signals_reset(client: TestClient) -> None:
+    with client.websocket_connect("/ws/can") as ws:
+        ws.receive_json()
+        client.post("/api/simulation/reset")
+        messages = [ws.receive_json() for _ in range(3)]
+
+    assert any(m["reset"] for m in messages)

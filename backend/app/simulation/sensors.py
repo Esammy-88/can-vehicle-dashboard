@@ -19,15 +19,21 @@ class Sensor:
         rng: random.Random | None = None,
         minimum: float | None = None,
         maximum: float | None = None,
+        zero_below: float | None = None,
     ) -> None:
         self._source = source
         self._noise_std = noise_std
         self._rng = rng or random.Random(0)
         self._min = minimum
         self._max = maximum
+        # Pulse-counting sensors (wheel speed, crank) read exactly zero when
+        # nothing turns: there are no pulses for noise to ride on.
+        self._zero_below = zero_below
 
     def read(self) -> float:
         value = self._source()
+        if self._zero_below is not None and abs(value) < self._zero_below:
+            return 0.0
         if self._noise_std:
             value += self._rng.gauss(0.0, self._noise_std)
         if self._min is not None:

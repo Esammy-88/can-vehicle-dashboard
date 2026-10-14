@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 
 from app.config import settings
@@ -92,3 +92,22 @@ async def simulation_action(
 async def simulation_speed(update: SpeedUpdate, runtime: Runtime) -> dict[str, Any]:
     runtime.set_speed(float(update.factor))
     return runtime.status()
+
+
+@router.get("/can/stats")
+async def can_stats(runtime: Runtime) -> dict[str, Any]:
+    return runtime.sim.monitor.stats(runtime.sim.time)
+
+
+@router.get("/can/frames")
+async def can_frames(
+    runtime: Runtime, limit: Annotated[int, Query(ge=1, le=2000)] = 200
+) -> list[dict[str, Any]]:
+    return list(runtime.sim.monitor.frames)[-limit:]
+
+
+@router.get("/history")
+async def history(
+    runtime: Runtime, seconds: Annotated[float, Query(gt=0, le=300)] = 60
+) -> list[dict[str, Any]]:
+    return runtime.sim.history.window(seconds)

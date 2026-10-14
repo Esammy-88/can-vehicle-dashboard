@@ -5,10 +5,9 @@ Transmission, Body, Instrument Cluster) exchange DBC-encoded CAN 2.0 frames over
 a virtual bus, and a React dashboard visualises the traffic, vehicle state,
 faults and diagnostics in real time. No physical hardware is required.
 
-> **Status:** Phase 4 — live dashboard. Engine, Transmission, Body and
-> Instrument Cluster ECUs run over the CAN bus against a simplified vehicle
-> physics model, and the web dashboard shows the cluster's view live and lets
-> you drive the car. CAN monitor and graphs come next.
+> **Status:** Phase 5 — monitoring. Live dashboard, a CAN monitor with
+> decoded traffic and bus statistics, and real-time graphs. Fault injection,
+> watchdogs and diagnostics come next.
 
 ## Architecture
 
@@ -79,7 +78,11 @@ python scripts/can_demo.py                  # a few frames, including bad ones
 | `POST /api/controls` | Partial update of driver inputs (ignition, throttle, brake, gear, lights, doors, seatbelt, indicators) |
 | `POST /api/simulation/{start,pause,reset}` | Simulation control |
 | `PUT /api/simulation/speed` | `{"factor": 0.5 \| 1 \| 2 \| 5}` |
-| `WS /ws/telemetry` | The same snapshot pushed at 20 Hz |
+| `GET /api/can/stats` | Bus statistics: rates per message / ECU, bus load, errors, timeouts, active nodes |
+| `GET /api/can/frames?limit=N` | Most recent decoded frames |
+| `GET /api/history?seconds=N` | Graph history (up to 300 s, sampled every 0.2 s) |
+| `WS /ws/telemetry` | The snapshot pushed at 20 Hz, plus new history samples |
+| `WS /ws/can` | New decoded frames and bus statistics every 100 ms |
 
 Interactive API docs are at http://localhost:8000/docs.
 
@@ -111,6 +114,16 @@ never simulation internals: speed and RPM gauges, gear and engine state,
 coolant / oil / transmission temperature and fuel meters, telltale lamps, and
 a warning panel (INFO / WARNING / CRITICAL). If an ECU goes silent its values
 blank out and a *CAN communication lost* warning appears.
+
+The **CAN Monitor** tab is a software CAN analyser: a passive bus node decodes
+every frame (time, ID, message, ECU, DLC, raw bytes, decoded signals, errors),
+with filters by ID / ECU / message / errors and pause. Above it are bus
+statistics: messages per second, measured rate per message against its DBC
+cycle time, frames per ECU, bus load, error counts by type, timeouts and
+active nodes.
+
+The **Graphs** tab plots speed, RPM, coolant and oil temperature, fuel, engine
+load and CAN message rate over a selectable 30 s – 5 min window.
 
 ## Screenshots
 

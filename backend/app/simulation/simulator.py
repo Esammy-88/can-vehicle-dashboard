@@ -19,6 +19,8 @@ from app.ecus.body import BodyEcu
 from app.ecus.dashboard import DashboardEcu
 from app.ecus.engine import EngineEcu
 from app.ecus.transmission import TransmissionEcu
+from app.monitoring.bus_monitor import BusMonitor
+from app.monitoring.history import TelemetryHistory
 from app.simulation.vehicle import Actuators, DriverInputs, VehicleModel
 
 log = logging.getLogger(__name__)
@@ -38,6 +40,9 @@ class Simulator:
         self.dashboard = DashboardEcu(factory.open(), codec)
         self.ecus: list[Ecu] = [self.engine, self.transmission, self.body, self.dashboard]
         self.crashed: set[str] = set()
+        # Passive observers: a bus tap for the CAN monitor, and graph history.
+        self.monitor = BusMonitor(factory.open(), codec)
+        self.history = TelemetryHistory()
         self._ticks = 0
 
     @property
@@ -57,6 +62,9 @@ class Simulator:
                 self.crashed.add(ecu.node)
                 ecu.shutdown()
         self.vehicle.step(TICK_S, self.actuators(), self.driver)
+        self.monitor.poll(self.time)
+        if self.history.due(self.time):
+            self.history.sample(self.time, self.dashboard.view(), self.monitor.message_rate())
 
     def run_for(self, seconds: float) -> None:
         for _ in range(round(seconds / TICK_S)):
@@ -79,6 +87,7 @@ class Simulator:
         for ecu in self.ecus:
             if ecu.node not in self.crashed:
                 ecu.shutdown()
+        self.monitor.bus.shutdown()
 
     def __enter__(self) -> Simulator:
         return self

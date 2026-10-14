@@ -1,52 +1,33 @@
-import { useEffect, useState } from "react";
-import { telemetryUrl } from "../services/api";
-import type { Snapshot } from "../types/api";
+import { useState } from "react";
+import type { HistorySample, Snapshot, TelemetryMessage } from "../types/api";
+import { useStream, type ConnectionState } from "./useStream";
 
-export type ConnectionState = "connecting" | "open" | "closed";
+export type { ConnectionState };
 
-const MAX_RETRY_MS = 5000;
+const MAX_SAMPLES = 1500; // 5 minutes at 5 Hz, matching the backend history
 
 export interface Telemetry {
   connection: ConnectionState;
   snapshot: Snapshot | null;
+  history: HistorySample[];
 }
 
-// Subscribes to the backend's telemetry stream and reconnects with backoff,
-// so restarting the backend never needs a page reload.
+// Live cluster snapshot (20 Hz) plus the graph history. The backend sends the
+// full history on connect and only new samples afterwards.
 export function useTelemetry(): Telemetry {
-  const [connection, setConnection] = useState<ConnectionState>("connecting");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [history, setHistory] = useState<HistorySample[]>([]);
 
-  useEffect(() => {
-    let socket: WebSocket | null = null;
-    let retryTimer: ReturnType<typeof setTimeout> | undefined;
-    let retryMs = 500;
-    let disposed = false;
+  const connection = useStream<TelemetryMessage>(
+    "/ws/telemetry",
+    ({ samples, reset, ...snap }) => {
+      setSnapshot(snap);
+      if (reset || samples.length) {
+        setHistory((prev) => (reset ? samples : [...prev, ...samples]).slice(-MAX_SAMPLES));
+      }
+    },
+    () => setSnapshot(null),
+  );
 
-    const connect = () => {
-      setConnection("connecting");
-      socket = new WebSocket(telemetryUrl());
-      socket.onopen = () => {
-        retryMs = 500;
-        setConnection("open");
-      };
-      socket.onmessage = (event) => setSnapshot(JSON.parse(event.data));
-      socket.onclose = () => {
-        if (disposed) return;
-        setConnection("closed");
-        setSnapshot(null);
-        retryTimer = setTimeout(connect, retryMs);
-        retryMs = Math.min(retryMs * 2, MAX_RETRY_MS);
-      };
-    };
-
-    connect();
-    return () => {
-      disposed = true;
-      clearTimeout(retryTimer);
-      socket?.close();
-    };
-  }, []);
-
-  return { connection, snapshot };
+  return { connection, snapshot, history };
 }

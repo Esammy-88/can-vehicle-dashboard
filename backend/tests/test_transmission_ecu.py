@@ -118,3 +118,11 @@ def test_no_upshift_while_braking(sim: Simulator) -> None:
 
     assert gears == sorted(gears, reverse=True)
     assert gears[-1] == 1
+
+
+def test_stationary_vehicle_reports_exactly_zero_speed(sim: Simulator) -> None:
+    start_and_select_drive(sim)
+    sim.driver.brake = 60
+    sim.run_for(1.0)
+
+    assert sim.transmission.signals_for("VEHICLE_STATUS")["VehicleSpeed"] == 0.0

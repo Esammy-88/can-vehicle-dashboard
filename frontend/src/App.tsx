@@ -1,0 +1,90 @@
+import { lazy, Suspense } from "react";
+import StatusIndicator from "./components/StatusIndicator";
+import { useHashRoute, type Route } from "./hooks/useHashRoute";
+import { useTelemetry } from "./hooks/useTelemetry";
+import CanMonitorPage from "./pages/CanMonitorPage";
+import DashboardPage from "./pages/DashboardPage";
+
+// Charts pull in Recharts; load them only when the Graphs tab is opened.
+const GraphsPage = lazy(() => import("./pages/GraphsPage"));
+
+const TABS: { route: Route; label: string }[] = [
+  { route: "dashboard", label: "Dashboard" },
+  { route: "monitor", label: "CAN Monitor" },
+  { route: "graphs", label: "Graphs" },
+];
+
+export default function App() {
+  // Telemetry lives at the top so graph history keeps filling on every page.
+  const telemetry = useTelemetry();
+  const { connection, snapshot } = telemetry;
+  const route = useHashRoute();
+
+  return (
+    <div className="min-h-full">
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 px-6 py-3">
+        <div className="flex items-center gap-8">
+          <div>
+            <h1 className="text-lg font-semibold tracking-wide text-slate-100">CAN Vehicle Dashboard</h1>
+            <p className="text-xs text-slate-500">Software-in-the-loop CAN network simulation</p>
+          </div>
+          <nav className="flex gap-1" aria-label="Pages">
+            {TABS.map((tab) => (
+              <a
+                key={tab.route}
+                href={`#/${tab.route}`}
+                aria-current={route === tab.route ? "page" : undefined}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  route === tab.route
+                    ? "bg-slate-800 text-slate-50"
+                    : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                }`}
+              >
+                {tab.label}
+              </a>
+            ))}
+          </nav>
+        </div>
+        <div className="flex items-center gap-6 text-xs text-slate-500">
+          {snapshot && (
+            <span>
+              CAN <span className="text-slate-300">{snapshot.can_mode.toUpperCase()}</span>
+              {snapshot.can_mode === "auto" && (
+                <>
+                  {" → "}
+                  <span className="text-slate-300">{snapshot.can_backend.toUpperCase()}</span>
+                </>
+              )}
+            </span>
+          )}
+          {snapshot && (
+            <span>
+              Simulation{" "}
+              <span className="text-slate-300">
+                {snapshot.simulation.running ? "running" : "paused"} · {snapshot.simulation.speed}×
+              </span>
+            </span>
+          )}
+          <StatusIndicator state={connection} />
+        </div>
+      </header>
+
+      {connection === "closed" && (
+        <div className="border-b border-status-warning/40 bg-slate-900 px-6 py-2 text-sm text-slate-300">
+          Backend unreachable — reconnecting. Start it with{" "}
+          <code className="font-mono text-slate-100">
+            uvicorn app.main:app --app-dir backend --reload --reload-dir backend
+          </code>
+        </div>
+      )}
+
+      {route === "dashboard" && <DashboardPage snapshot={snapshot} />}
+      {route === "monitor" && <CanMonitorPage />}
+      {route === "graphs" && (
+        <Suspense fallback={<p className="p-6 text-sm text-slate-500">Loading charts…</p>}>
+          <GraphsPage history={telemetry.history} />
+        </Suspense>
+      )}
+    </div>
+  );
+}

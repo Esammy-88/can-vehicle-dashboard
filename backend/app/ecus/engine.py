@@ -55,7 +55,7 @@ class EngineEcu(Ecu):
     ) -> None:
         super().__init__(bus, codec)
         self.driver = driver
-        self._rpm_sensor = Sensor(lambda: plant.engine_rpm, 3.0, rng, minimum=0.0)
+        self._rpm_sensor = Sensor(lambda: plant.engine_rpm, 3.0, rng, minimum=0.0, zero_below=1.0)
         self._load_sensor = Sensor(lambda: plant.engine_load * 100.0, 0.3, rng, 0.0, 100.0)
         self._coolant_sensor = Sensor(lambda: plant.coolant_c, 0.2, rng)
         self._oil_sensor = Sensor(lambda: plant.oil_c, 0.2, rng)
