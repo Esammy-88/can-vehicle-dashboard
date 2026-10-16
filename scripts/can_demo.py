@@ -85,7 +85,10 @@ def main() -> None:
             )
         )
 
-        corrupted = codec.encode("ENGINE_TEMPERATURE", {"CoolantTemp": 91, "OilTemp": 104})
+        corrupted = codec.encode(
+            "ENGINE_TEMPERATURE",
+            {"CoolantTemp": 91, "OilTemp": 104, "EngineDtc": 0, "EngineDtcCount": 0},
+        )
         corrupted.data[0] ^= 0xFF  # simulate a bit-flipped payload
         ecm.send(corrupted)
         ecm.send(can.Message(arbitration_id=0x6AB, data=bytes(8), is_extended_id=False))

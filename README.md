@@ -5,9 +5,9 @@ Transmission, Body, Instrument Cluster) exchange DBC-encoded CAN 2.0 frames over
 a virtual bus, and a React dashboard visualises the traffic, vehicle state,
 faults and diagnostics in real time. No physical hardware is required.
 
-> **Status:** Phase 5 — monitoring. Live dashboard, a CAN monitor with
-> decoded traffic and bus statistics, and real-time graphs. Fault injection,
-> watchdogs and diagnostics come next.
+> **Status:** Phase 6 — faults and diagnostics. Live dashboard, CAN monitor,
+> graphs, ten injectable faults, an ECU watchdog, diagnostic trouble codes, a
+> diagnostics page and an event log. Demo mode comes next.
 
 ## Architecture
 
@@ -83,6 +83,13 @@ python scripts/can_demo.py                  # a few frames, including bad ones
 | `GET /api/history?seconds=N` | Graph history (up to 300 s, sampled every 0.2 s) |
 | `WS /ws/telemetry` | The snapshot pushed at 20 Hz, plus new history samples |
 | `WS /ws/can` | New decoded frames and bus statistics every 100 ms |
+| `GET /api/faults` | Fault catalogue and active faults |
+| `POST /api/faults` | Inject `{"type": "ECU_OFFLINE", "target": "TCM"}` |
+| `DELETE /api/faults/{type}` / `DELETE /api/faults` | Clear one fault / all faults |
+| `GET /api/diagnostics` | ECU status (watchdog), active DTCs, DTC history |
+| `GET /api/logs`, `GET /api/logs/export?format=json\|csv` | Event log and export |
+| `POST /api/logs/trace` | `{"action": "start" \| "stop"}` CAN trace recording |
+| `GET /api/logs/files[/{name}]` | List / download event logs and traces |
 
 Interactive API docs are at http://localhost:8000/docs.
 
@@ -124,6 +131,19 @@ active nodes.
 
 The **Graphs** tab plots speed, RPM, coolant and oil temperature, fuel, engine
 load and CAN message rate over a selectable 30 s – 5 min window.
+
+The **fault injection** panel (on the Dashboard and Diagnostics pages) injects
+ten faults where they would physically happen — engine and transmission
+cooling failures, a fuel leak, a broken sensor, a stuck pedal, an ECU powering
+off, a missing message, a rogue node sending invalid frames, a bus wiring
+fault, an engine runaway — and the network has to detect them itself.
+
+The **Diagnostics** tab shows each ECU's watchdog status (ONLINE / OFFLINE,
+last frame, timeouts, alive-counter errors), the bus status, active OBD-II
+trouble codes and the fault and DTC history. The **Logs** tab shows the event
+log (also written to `logs/` as JSON lines, exportable as JSON or CSV) and
+records raw CAN traces in candump format. Details in
+[docs/fault-injection.md](docs/fault-injection.md).
 
 ## Screenshots
 

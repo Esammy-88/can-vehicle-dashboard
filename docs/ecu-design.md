@@ -45,9 +45,9 @@ rest of the network keeps running.
 
 | | |
 |---|---|
-| Sensors | throttle pedal, crank speed (RPM), engine load, coolant and oil temperature |
-| From CAN | vehicle speed (`VEHICLE_STATUS`, TCM) |
-| Actuators | fuel enable, torque limit |
+| Sensors | accelerator pedal, crank speed (RPM), engine load, coolant and oil temperature |
+| From CAN | vehicle speed and brake switch (`VEHICLE_STATUS`, TCM) |
+| Actuators | throttle (drive-by-wire), fuel enable, torque limit |
 | Transmits | `ENGINE_STATUS` (100 ms), `ENGINE_TEMPERATURE` (500 ms) |
 
 State machine:
@@ -63,6 +63,17 @@ any state ──ignition off──▶ OFF          FAULT is latched until the ig
 Driving states come from smoothed vehicle acceleration (via CAN) and RPM
 rate: ACCELERATING above +1.5 km/h/s, DECELERATING below −1.5 km/h/s or when
 coasting off-throttle, IDLE when stationary, otherwise CRUISING.
+
+**Drive-by-wire:** the engine follows the ECM's throttle command, not the
+pedal. If the brake switch (received over CAN) is on while the pedal is at
+20 % or more, the ECM commands 0 % throttle — the brake-throttle override that
+protects against a stuck pedal.
+
+**On-board diagnostics:** a coolant reading outside −35…200 °C is a broken
+sensor (P0118) and is replaced by a substitute 90 °C for control; OVERHEAT sets
+P0217; more than 6500 rpm for 0.3 s sets P0219; the brake override sets P2299.
+Active codes are broadcast one per `ENGINE_TEMPERATURE` frame, rotating, with
+`EngineDtcCount`.
 
 ## Transmission Control Module (TCM)
 
@@ -83,6 +94,8 @@ coasting off-throttle, IDLE when stationary, otherwise CRUISING.
   inside the opposite threshold, with at least 0.8 s between shifts.
 - No upshifts while braking; first gear is selected below 5 km/h.
 - A shift takes 0.4 s, during which drive torque is reduced to 30 %.
+- **Over-temperature limp mode:** fluid ≥ 120 °C (exit ≤ 110 °C) sets
+  `TransFault` and DTC P0218 and limits the gearbox to 3rd.
 
 ## Body Control Module (BCM)
 
@@ -111,12 +124,27 @@ the warnings below. Its view is what the web dashboard displays (streamed over
 |---|---|---|
 | CAN_COMM_LOST | an ECU's messages missing for 3 cycles (after a 1 s start-up grace) | CRITICAL |
 | ENGINE_FAULT | `EngineState` = FAULT | CRITICAL |
+| CHECK_ENGINE | `EngineDtcCount` > 0 (and not FAULT) | WARNING |
+| HIGH_RPM | engine speed > 6500 rpm | WARNING |
 | ENGINE_OVERHEAT | `EngineState` = OVERHEAT or coolant ≥ 110 °C | CRITICAL |
 | TRANSMISSION_FAULT | `TransFault` = 1 | CRITICAL |
 | HIGH_OIL_TEMP | oil ≥ 130 °C | WARNING |
 | LOW_FUEL | fuel < 15 % | WARNING |
 | DOOR_OPEN | any door open | INFO stationary, WARNING above 5 km/h |
 | SEATBELT | unbuckled with engine running | INFO stationary, WARNING above 10 km/h |
+
+## Diagnostic monitor (DIAG)
+
+| | |
+|---|---|
+| Inputs | none wired: listens to the whole bus |
+| Transmits | `DIAGNOSTIC_STATUS` (1000 ms): ECU online flags, active DTC count, latest DTC |
+
+DIAG runs the ECU **watchdog** (an ECU silent for 1.5 s is OFFLINE; alive
+counters are checked for repeats and jumps), collects the DTCs the ECUs
+broadcast, raises network codes itself (U0100/U0101/U0140/U0155 for a silent
+ECU, U0001 when the whole bus is quiet, U0401 for corrupted ECM frames) and
+keeps a DTC history. See [fault-injection.md](fault-injection.md).
 
 ## Vehicle physics (simplified)
 

@@ -110,7 +110,7 @@ def test_silent_ecu_raises_comm_lost_and_blanks_its_values(
 
     view = sim.dashboard.view()
     lost = [w for w in sim.dashboard.warnings if w.code == "CAN_COMM_LOST"]
-    assert [w.message for w in lost] == ["CAN communication lost: Transmission ECU"]
+    assert [w.message for w in lost] == ["Transmission ECU offline: CAN communication lost"]
     assert lost[0].severity is Severity.CRITICAL
     assert view["sources_online"]["TCM"] is False
     assert view["speed_kmh"] is None

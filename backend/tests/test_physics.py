@@ -48,7 +48,7 @@ def run_plant(plant: VehicleModel, act: Actuators, driver: DriverInputs, seconds
 def test_engine_does_not_run_without_fuel_command() -> None:
     plant = VehicleModel()
 
-    run_plant(plant, Actuators(fuel_enabled=False), DriverInputs(throttle=100), 2.0)
+    run_plant(plant, Actuators(fuel_enabled=False, throttle=100), DriverInputs(), 2.0)
 
     assert plant.engine_rpm == 0.0
     assert not plant.engine_running
@@ -57,7 +57,7 @@ def test_engine_does_not_run_without_fuel_command() -> None:
 def test_park_holds_the_car_at_full_throttle() -> None:
     plant = VehicleModel()
 
-    run_plant(plant, Actuators(fuel_enabled=True, park=True), DriverInputs(throttle=100), 3.0)
+    run_plant(plant, Actuators(fuel_enabled=True, park=True, throttle=100), DriverInputs(), 3.0)
 
     assert plant.speed_ms == 0.0
     assert plant.engine_rpm > 5000  # free-revving
@@ -65,10 +65,11 @@ def test_park_holds_the_car_at_full_throttle() -> None:
 
 def test_throttle_accelerates_and_brake_stops_without_reversing() -> None:
     plant = VehicleModel()
-    act = Actuators(fuel_enabled=True, drive_gear=1, park=False)
+    act = Actuators(fuel_enabled=True, drive_gear=1, park=False, throttle=50)
 
-    run_plant(plant, act, DriverInputs(throttle=50), 3.0)
+    run_plant(plant, act, DriverInputs(), 3.0)
     moving = plant.speed_kmh
+    act.throttle = 0
     run_plant(plant, act, DriverInputs(brake=100), 5.0)
 
     assert moving > 15
@@ -80,8 +81,8 @@ def test_reverse_gear_moves_backwards() -> None:
 
     run_plant(
         plant,
-        Actuators(fuel_enabled=True, drive_gear=-1, park=False),
-        DriverInputs(throttle=20),
+        Actuators(fuel_enabled=True, drive_gear=-1, park=False, throttle=20),
+        DriverInputs(),
         2.0,
     )
 
@@ -91,11 +92,12 @@ def test_reverse_gear_moves_backwards() -> None:
 
 def test_temperatures_rise_under_load_and_fall_when_load_drops() -> None:
     plant = VehicleModel(coolant_c=88.0, oil_c=90.0)
-    act = Actuators(fuel_enabled=True, drive_gear=3, park=False)
+    act = Actuators(fuel_enabled=True, drive_gear=3, park=False, throttle=100)
 
-    run_plant(plant, act, DriverInputs(throttle=100), 30.0)
+    run_plant(plant, act, DriverInputs(), 30.0)
     hot = plant.coolant_c, plant.oil_c
-    run_plant(plant, act, DriverInputs(throttle=0), 30.0)
+    act.throttle = 0
+    run_plant(plant, act, DriverInputs(), 30.0)
 
     assert hot[0] > 95 and hot[1] > 100
     assert plant.coolant_c < hot[0] and plant.oil_c < hot[1]
@@ -107,7 +109,7 @@ def test_fuel_is_consumed_only_while_running() -> None:
 
     run_plant(plant, Actuators(fuel_enabled=False), DriverInputs(), 5.0)
     assert plant.fuel_l == start
-    run_plant(plant, Actuators(fuel_enabled=True), DriverInputs(throttle=50), 5.0)
+    run_plant(plant, Actuators(fuel_enabled=True, throttle=50), DriverInputs(), 5.0)
     assert plant.fuel_l < start
 
 

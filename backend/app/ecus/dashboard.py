@@ -23,6 +23,7 @@ STARTUP_GRACE_S = 1.0  # don't report lost communication before anything had a c
 LOW_FUEL_PCT = 15.0
 OVERHEAT_C = 110.0
 HIGH_OIL_C = 130.0
+HIGH_RPM = 6500.0
 DOOR_MOVING_KMH = 5.0
 SEATBELT_MOVING_KMH = 10.0
 
@@ -110,12 +111,23 @@ class DashboardEcu(Ecu):
                         ClusterWarning(
                             "CAN_COMM_LOST",
                             Severity.CRITICAL,
-                            f"CAN communication lost: {ECU_NAMES[ecu]}",
+                            f"{ECU_NAMES[ecu]} offline: CAN communication lost",
                         )
                     )
 
         if engine.get("EngineState") == "FAULT":
             out.append(ClusterWarning("ENGINE_FAULT", Severity.CRITICAL, "Engine fault"))
+        elif temps.get("EngineDtcCount", 0) > 0:
+            count = temps["EngineDtcCount"]
+            out.append(
+                ClusterWarning(
+                    "CHECK_ENGINE",
+                    Severity.WARNING,
+                    f"Check engine: {count} fault code{'s' if count > 1 else ''} active",
+                )
+            )
+        if engine.get("EngineRPM", 0) > HIGH_RPM:
+            out.append(ClusterWarning("HIGH_RPM", Severity.WARNING, "Engine speed too high"))
         if engine.get("EngineState") == "OVERHEAT" or temps.get("CoolantTemp", 0) >= OVERHEAT_C:
             out.append(ClusterWarning("ENGINE_OVERHEAT", Severity.CRITICAL, "Engine overheat"))
         if temps.get("OilTemp", 0) >= HIGH_OIL_C:
@@ -149,8 +161,10 @@ class DashboardEcu(Ecu):
 
     def signals_for(self, message_name: str) -> Mapping[str, SignalValue]:
         active = {w.code for w in self.warnings}
+        lamps = {signal: int(code in active) for code, signal in LAMPS.items()}
+        lamps["WarnEngineFault"] |= int("CHECK_ENGINE" in active)  # same MIL lamp
         return {
-            **{signal: int(code in active) for code, signal in LAMPS.items()},
+            **lamps,
             "MasterSeverity": self.master_severity.name,
             "Odometer": self.odometer_km,
         }

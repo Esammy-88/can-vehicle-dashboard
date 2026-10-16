@@ -1,5 +1,10 @@
+import os
+import tempfile
 import uuid
 from collections.abc import Iterator
+
+# Keep test runs from writing event logs and traces into the repository's logs/.
+os.environ.setdefault("LOG_DIR", tempfile.mkdtemp(prefix="can-dashboard-test-logs-"))
 
 import pytest
 

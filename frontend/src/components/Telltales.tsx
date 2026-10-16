@@ -65,7 +65,7 @@ export default function Telltales({ cluster }: { cluster: Cluster | null }) {
       <Lamp label="Seatbelt" lit={codes.has("SEATBELT")} color={red}>
         <SeatbeltIcon />
       </Lamp>
-      <Lamp label="Check engine" lit={codes.has("ENGINE_FAULT")} color={amber}>
+      <Lamp label="Check engine" lit={codes.has("ENGINE_FAULT") || codes.has("CHECK_ENGINE")} color={amber}>
         <EngineIcon />
       </Lamp>
       <Lamp label="Engine overheat" lit={codes.has("ENGINE_OVERHEAT")} color={red}>

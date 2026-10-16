@@ -25,6 +25,8 @@ BO_ 256 ENGINE_STATUS: 8 ECM
 BO_ 257 ENGINE_TEMPERATURE: 8 ECM
  SG_ CoolantTemp : 0|8@1+ (1,-40) [-40|215] "degC" IPC,DIAG
  SG_ OilTemp : 8|8@1+ (1,-40) [-40|215] "degC" IPC,DIAG
+ SG_ EngineDtc : 16|16@1+ (1,0) [0|65535] "" IPC,DIAG
+ SG_ EngineDtcCount : 32|4@1+ (1,0) [0|15] "" IPC,DIAG
  SG_ AliveCounter : 48|4@1+ (1,0) [0|15] "" DIAG
  SG_ Checksum : 56|8@1+ (1,0) [0|255] "" DIAG
 
@@ -40,6 +42,7 @@ BO_ 513 TRANSMISSION_STATUS: 8 TCM
  SG_ TransTemp : 8|8@1+ (1,-40) [-40|215] "degC" IPC,DIAG
  SG_ TransFault : 16|1@1+ (1,0) [0|1] "" IPC,DIAG
  SG_ ShiftInProgress : 17|1@1+ (1,0) [0|1] "" ECM,IPC,DIAG
+ SG_ TransDtc : 24|16@1+ (1,0) [0|65535] "" IPC,DIAG
  SG_ AliveCounter : 48|4@1+ (1,0) [0|15] "" DIAG
  SG_ Checksum : 56|8@1+ (1,0) [0|255] "" DIAG
 
@@ -96,6 +99,9 @@ CM_ BO_ 1280 "ECU online status and diagnostic trouble code summary";
 CM_ SG_ 256 EngineState "Engine state machine state";
 CM_ SG_ 513 CurrentGear "Engaged gear; 0 when no forward gear is engaged (P/R/N)";
 CM_ SG_ 1280 LastDtc "Most recent DTC, OBD-II style code packed as 16 bits (e.g. 0x0217 = P0217)";
+CM_ SG_ 257 EngineDtc "One active ECM DTC (2-byte OBD-II encoding); rotates through all active codes, 0 = none";
+CM_ SG_ 257 EngineDtcCount "Number of active ECM DTCs";
+CM_ SG_ 513 TransDtc "Active TCM DTC (2-byte OBD-II encoding), 0 = none";
 CM_ SG_ 256 AliveCounter "Rolling 0-15 counter, incremented every transmission";
 CM_ SG_ 256 Checksum "(sum of bytes 0-6 + ID low byte + ID high byte) mod 256, XOR 0xFF";
 

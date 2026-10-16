@@ -31,6 +31,8 @@ def test_revving_in_neutral_is_accelerating(sim: Simulator) -> None:
     sim.run_for(1.5)
     sim.driver.brake = 50
     sim.driver.gear_selector = Selector.N
+    sim.run_for(0.2)
+    sim.driver.brake = 0  # brake + throttle together would trigger the brake override
     sim.driver.throttle = 60
     sim.run_for(0.3)
 

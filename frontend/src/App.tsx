@@ -4,6 +4,8 @@ import { useHashRoute, type Route } from "./hooks/useHashRoute";
 import { useTelemetry } from "./hooks/useTelemetry";
 import CanMonitorPage from "./pages/CanMonitorPage";
 import DashboardPage from "./pages/DashboardPage";
+import DiagnosticsPage from "./pages/DiagnosticsPage";
+import LogsPage from "./pages/LogsPage";
 
 // Charts pull in Recharts; load them only when the Graphs tab is opened.
 const GraphsPage = lazy(() => import("./pages/GraphsPage"));
@@ -12,6 +14,8 @@ const TABS: { route: Route; label: string }[] = [
   { route: "dashboard", label: "Dashboard" },
   { route: "monitor", label: "CAN Monitor" },
   { route: "graphs", label: "Graphs" },
+  { route: "diagnostics", label: "Diagnostics" },
+  { route: "logs", label: "Logs" },
 ];
 
 export default function App() {
@@ -46,6 +50,15 @@ export default function App() {
           </nav>
         </div>
         <div className="flex items-center gap-6 text-xs text-slate-500">
+          {snapshot && snapshot.faults.length > 0 && (
+            <a
+              href="#/diagnostics"
+              className="flex items-center gap-2 rounded-full border border-status-critical/60 px-2.5 py-1 text-slate-200 hover:bg-slate-900"
+            >
+              <span className="h-2 w-2 rounded-full bg-status-critical" aria-hidden="true" />
+              {snapshot.faults.length} fault{snapshot.faults.length > 1 ? "s" : ""} injected
+            </a>
+          )}
           {snapshot && (
             <span>
               CAN <span className="text-slate-300">{snapshot.can_mode.toUpperCase()}</span>
@@ -80,6 +93,8 @@ export default function App() {
 
       {route === "dashboard" && <DashboardPage snapshot={snapshot} />}
       {route === "monitor" && <CanMonitorPage />}
+      {route === "diagnostics" && <DiagnosticsPage snapshot={snapshot} events={telemetry.events} />}
+      {route === "logs" && <LogsPage events={telemetry.events} />}
       {route === "graphs" && (
         <Suspense fallback={<p className="p-6 text-sm text-slate-500">Loading charts…</p>}>
           <GraphsPage history={telemetry.history} />

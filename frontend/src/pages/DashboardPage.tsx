@@ -1,5 +1,6 @@
 import ControlPanel from "../components/ControlPanel";
 import EngineStateBadge from "../components/EngineStateBadge";
+import FaultPanel from "../components/FaultPanel";
 import Gauge from "../components/Gauge";
 import GearDisplay from "../components/GearDisplay";
 import { FuelIcon, GearboxIcon, TemperatureIcon } from "../components/Icons";
@@ -125,6 +126,7 @@ export default function DashboardPage({ snapshot }: { snapshot: Snapshot | null 
             cluster={c}
             simulation={snapshot?.simulation ?? null}
           />
+          <FaultPanel active={snapshot?.faults ?? null} />
         </aside>
       </div>
     </div>

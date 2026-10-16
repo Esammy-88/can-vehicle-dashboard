@@ -29,8 +29,12 @@ class Sensor:
         # Pulse-counting sensors (wheel speed, crank) read exactly zero when
         # nothing turns: there are no pulses for noise to ride on.
         self._zero_below = zero_below
+        # Set by fault injection: the sensor reads this instead of the real value.
+        self.fault_value: float | None = None
 
     def read(self) -> float:
+        if self.fault_value is not None:
+            return self.fault_value
         value = self._source()
         if self._zero_below is not None and abs(value) < self._zero_below:
             return 0.0

@@ -16,7 +16,7 @@ import can
 from cantools.database.can import Message
 
 from app.can.decoder import CanCodec
-from app.can.frames import COUNTER_MODULO, SignalValue
+from app.can.frames import COUNTER_MODULO, DecodedFrame, SignalValue
 
 # A received message is considered stale after this many missed cycles.
 STALE_AFTER_CYCLES = 3
@@ -50,6 +50,8 @@ class Ecu(ABC):
         self._rx: dict[str, _RxEntry] = {}
         self.frames_sent = 0
         self.rx_errors = 0
+        self.tx_enabled = True  # False while the bus is down: frames are lost on the wire
+        self.suppressed: set[str] = set()  # messages this ECU has stopped sending (fault)
 
     def step(self, now: float) -> None:
         self._receive(now)
@@ -63,6 +65,15 @@ class Ecu(ABC):
     @abstractmethod
     def signals_for(self, message_name: str) -> Mapping[str, SignalValue]:
         """Physical signal values for a message this ECU transmits."""
+
+    def on_frame(self, frame: DecodedFrame, now: float) -> None:  # noqa: B027 - optional hook
+        """Called for every received frame, valid or not. Override to observe traffic."""
+
+    def reboot(self) -> None:
+        """Power-cycle: drop queued traffic and anything learned from the bus."""
+        while self.bus.recv(timeout=0) is not None:
+            pass
+        self._rx.clear()
 
     def latest(self, message_name: str, now: float) -> dict[str, SignalValue] | None:
         """Most recent signals of a received message, or None if missing/stale."""
@@ -79,6 +90,7 @@ class Ecu(ABC):
     def _receive(self, now: float) -> None:
         while (frame := self.bus.recv(timeout=0)) is not None:
             decoded = self.codec.decode(frame)
+            self.on_frame(decoded, now)
             if decoded.ok:
                 self._rx[decoded.name] = _RxEntry(now, decoded.signals)
             else:
@@ -88,10 +100,13 @@ class Ecu(ABC):
         for slot in self._tx:
             if now + _TIME_EPSILON < slot.next_due:
                 continue
-            signals = _saturate(slot.message, self.signals_for(slot.message.name))
-            self.bus.send(self.codec.encode(slot.message.name, signals, slot.counter))
-            self.frames_sent += 1
-            slot.counter = (slot.counter + 1) % COUNTER_MODULO
+            if slot.message.name not in self.suppressed:
+                signals = _saturate(slot.message, self.signals_for(slot.message.name))
+                frame = self.codec.encode(slot.message.name, signals, slot.counter)
+                slot.counter = (slot.counter + 1) % COUNTER_MODULO
+                if self.tx_enabled:
+                    self.bus.send(frame)
+                    self.frames_sent += 1
             slot.next_due += slot.period_s
             if slot.next_due + _TIME_EPSILON <= now:
                 slot.next_due = now + slot.period_s  # fell behind: resync instead of bursting

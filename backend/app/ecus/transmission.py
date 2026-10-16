@@ -14,6 +14,7 @@ import can
 
 from app.can.decoder import CanCodec
 from app.can.frames import SignalValue
+from app.ecus import dtc
 from app.ecus.base import Ecu
 from app.simulation.physics import GEAR_RATIOS, kmh_to_engine_rpm
 from app.simulation.sensors import Sensor
@@ -26,6 +27,9 @@ PARK_REVERSE_MAX_KMH = 3.0  # P and R are refused above this speed
 LAUNCH_GEAR_BELOW_KMH = 5.0
 REDLINE_UPSHIFT_RPM = 6200.0
 HYSTERESIS_RPM = 300.0
+OVERTEMP_ENTER_C = 120.0
+OVERTEMP_EXIT_C = 110.0
+LIMP_MAX_GEAR = 3  # hot fluid: hold low gears to protect the clutches
 
 
 def upshift_rpm(throttle: float) -> float:
@@ -68,6 +72,7 @@ class TransmissionEcu(Ecu):
         self.speed_kmh = 0.0
         self.trans_temp_c = 0.0
         self.shifting = False
+        self.overtemp = False
         self._shift_until = 0.0
         self._last_shift = float("-inf")
 
@@ -86,6 +91,10 @@ class TransmissionEcu(Ecu):
     def update(self, now: float) -> None:
         self.speed_kmh = self._speed_sensor.read()
         self.trans_temp_c = self._temp_sensor.read()
+        if self.overtemp:
+            self.overtemp = self.trans_temp_c > OVERTEMP_EXIT_C
+        else:
+            self.overtemp = self.trans_temp_c >= OVERTEMP_ENTER_C
         engine = self.latest("ENGINE_STATUS", now)
         throttle = float(engine["ThrottlePosition"]) if engine else 0.0
         engine_rpm = float(engine["EngineRPM"]) if engine else 0.0
@@ -106,7 +115,14 @@ class TransmissionEcu(Ecu):
         self.selector = requested
         self.gear = gear_for_speed(self.speed_kmh, throttle) if requested is Selector.D else 0
 
+    @property
+    def max_gear(self) -> int:
+        return LIMP_MAX_GEAR if self.overtemp else TOP_GEAR
+
     def _auto_shift(self, now: float, throttle: float, engine_rpm: float) -> None:
+        if self.gear > self.max_gear:
+            self._shift_to(self.max_gear, now)
+            return
         if self.speed_kmh < LAUNCH_GEAR_BELOW_KMH:
             if self.gear != 1:
                 self._shift_to(1, now)
@@ -115,7 +131,7 @@ class TransmissionEcu(Ecu):
             return
 
         rpm_here = kmh_to_engine_rpm(self.speed_kmh, self.gear)
-        if self.gear < TOP_GEAR and not self.driver.brake_pressed:  # no upshift while braking
+        if self.gear < self.max_gear and not self.driver.brake_pressed:  # no upshift while braking
             rpm_above = kmh_to_engine_rpm(self.speed_kmh, self.gear + 1)
             wants_up = rpm_here > upshift_rpm(throttle) or engine_rpm > REDLINE_UPSHIFT_RPM
             if wants_up and rpm_above > downshift_rpm(throttle) + HYSTERESIS_RPM:
@@ -144,6 +160,7 @@ class TransmissionEcu(Ecu):
             "GearSelector": self.selector.value,
             "CurrentGear": self.gear if self.selector is Selector.D else 0,
             "TransTemp": round(self.trans_temp_c),
-            "TransFault": 0,
+            "TransFault": int(self.overtemp),
             "ShiftInProgress": int(self.shifting),
+            "TransDtc": dtc.encode("P0218") if self.overtemp else 0,
         }

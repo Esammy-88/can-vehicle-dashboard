@@ -23,15 +23,19 @@ Lower IDs win arbitration, so the safety-relevant powertrain data (0x1xx,
 | ID | Message | Sender | Cycle | Signals |
 |---|---|---|---|---|
 | 0x100 | ENGINE_STATUS | ECM | 100 ms | EngineRPM, EngineLoad, ThrottlePosition, EngineRunning, EngineState |
-| 0x101 | ENGINE_TEMPERATURE | ECM | 500 ms | CoolantTemp, OilTemp |
+| 0x101 | ENGINE_TEMPERATURE | ECM | 500 ms | CoolantTemp, OilTemp, EngineDtc, EngineDtcCount |
 | 0x200 | VEHICLE_STATUS | TCM | 50 ms | VehicleSpeed, BrakeSwitch |
-| 0x201 | TRANSMISSION_STATUS | TCM | 100 ms | GearSelector, CurrentGear, TransTemp, TransFault, ShiftInProgress |
+| 0x201 | TRANSMISSION_STATUS | TCM | 100 ms | GearSelector, CurrentGear, TransTemp, TransFault, ShiftInProgress, TransDtc |
 | 0x300 | BODY_STATUS | BCM | 200 ms | FuelLevel, Headlights, TurnIndicator, Door*Open (x4), SeatbeltFastened, BrakeLights |
 | 0x400 | DASHBOARD_STATUS | IPC | 200 ms | Warn* lamps (x8), MasterSeverity, Odometer |
 | 0x500 | DIAGNOSTIC_STATUS | DIAG | 1000 ms | EcmOnline, TcmOnline, BcmOnline, IpcOnline, ActiveDtcCount, LastDtc |
 
 Vehicle speed comes from the TCM (transmission output-shaft sensor), which also
 reads the brake switch for its shift logic. The BCM drives the brake lights.
+
+DTC signals (`EngineDtc`, `TransDtc`, `LastDtc`) carry OBD-II trouble codes in
+the standard 2-byte encoding (P0217 → `0x0217`, U0100 → `0xC100`); see
+[fault-injection.md](fault-injection.md).
 
 ## Signal scaling
 

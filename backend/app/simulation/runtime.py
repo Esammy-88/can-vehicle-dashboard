@@ -13,10 +13,13 @@ import asyncio
 import contextlib
 import logging
 from dataclasses import asdict
+from pathlib import Path
 from typing import Any
 
 from app.can.bus import BusFactory
 from app.can.decoder import CanCodec
+from app.monitoring.can_trace import CanTraceRecorder
+from app.monitoring.event_log import EventLog
 from app.simulation.simulator import TICK_S, Simulator
 
 log = logging.getLogger(__name__)
@@ -26,11 +29,28 @@ MAX_TICKS_PER_WAKE = 50  # after a long stall, skip ahead rather than spin to ca
 
 
 class SimulationRuntime:
-    def __init__(self, factory: BusFactory, codec: CanCodec, seed: int = 0) -> None:
+    def __init__(
+        self,
+        factory: BusFactory,
+        codec: CanCodec,
+        seed: int = 0,
+        log_dir: Path | None = None,
+    ) -> None:
         self.factory = factory
         self._codec = codec
         self._seed = seed
-        self.sim = Simulator(factory, codec, seed)
+        self.log_dir = log_dir
+        # The event log and trace recorder outlive simulation resets.
+        self.events = EventLog(log_dir)
+        self.trace = CanTraceRecorder(log_dir, factory.channel) if log_dir else None
+        self.sim = self._new_simulator()
+        self.events.add(
+            "SIMULATION_START",
+            "INFO",
+            "SYSTEM",
+            f"Simulation started on {factory.backend} CAN bus",
+            0.0,
+        )
         self.running = True
         self.speed = 1.0
         self._task: asyncio.Task[None] | None = None
@@ -45,6 +65,8 @@ class SimulationRuntime:
             with contextlib.suppress(asyncio.CancelledError):
                 await self._task
             self._task = None
+        if self.trace:
+            self.trace.stop()
         self.sim.close()
 
     def resume(self) -> None:
@@ -55,7 +77,14 @@ class SimulationRuntime:
 
     def reset(self) -> None:
         self.sim.close()
-        self.sim = Simulator(self.factory, self._codec, self._seed)
+        self.sim = self._new_simulator()
+        self.events.add("SIMULATION_RESET", "INFO", "SYSTEM", "Simulation reset", 0.0)
+
+    def _new_simulator(self) -> Simulator:
+        sim = Simulator(self.factory, self._codec, self._seed, events=self.events)
+        if self.trace:
+            sim.monitor.tap = self.trace.record
+        return sim
 
     def set_speed(self, factor: float) -> None:
         if factor not in SPEED_FACTORS:
@@ -77,6 +106,14 @@ class SimulationRuntime:
             "can_mode": self.factory.mode.value,
             "cluster": self.sim.dashboard.view(),
             "controls": asdict(self.sim.driver),
+            "faults": self.sim.faults.to_list(),
+            "diagnostics": self.sim.diagnostics.view(self.sim.time),
+            "bus_down": self.sim.bus_down,
+            "bus": {
+                "messages_per_s": self.sim.monitor.message_rate(),
+                "errors": sum(self.sim.monitor.errors_by_type.values()),
+                "total_frames": self.sim.monitor.total_frames,
+            },
         }
 
     async def _loop(self) -> None:

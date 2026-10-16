@@ -174,3 +174,84 @@ def test_stream_signals_reset(client: TestClient) -> None:
         messages = [ws.receive_json() for _ in range(3)]
 
     assert any(m["reset"] for m in messages)
+
+
+def test_fault_catalog_inject_and_clear(client: TestClient) -> None:
+    catalog = client.get("/api/faults").json()["catalog"]
+    assert len(catalog) == 10
+    assert next(f for f in catalog if f["type"] == "ECU_OFFLINE")["targets"] == [
+        "ECM",
+        "TCM",
+        "BCM",
+    ]
+
+    active = client.post("/api/faults", json={"type": "ECU_OFFLINE", "target": "BCM"}).json()
+    assert active[0]["type"] == "ECU_OFFLINE" and active[0]["target"] == "BCM"
+    assert client.get("/api/state").json()["faults"] == active
+
+    assert client.delete("/api/faults/ECU_OFFLINE", params={"target": "BCM"}).json() == []
+    assert client.delete("/api/faults/ECU_OFFLINE", params={"target": "BCM"}).status_code == 404
+
+
+def test_fault_validation(client: TestClient) -> None:
+    assert client.post("/api/faults", json={"type": "ECU_OFFLINE"}).status_code == 422
+    assert client.post("/api/faults", json={"type": "NOPE"}).status_code == 422
+
+
+def test_clear_all_faults(client: TestClient) -> None:
+    client.post("/api/faults", json={"type": "HIGH_RPM"})
+    client.post("/api/faults", json={"type": "LOW_FUEL"})
+
+    assert client.delete("/api/faults").json() == []
+
+
+def test_diagnostics_endpoint(client: TestClient) -> None:
+    time.sleep(1.0)
+
+    body = client.get("/api/diagnostics").json()
+
+    assert [e["node"] for e in body["ecus"]] == ["ECM", "TCM", "BCM", "IPC"]
+    assert client.delete("/api/diagnostics/dtcs").status_code == 200
+
+
+def test_logs_and_export(client: TestClient) -> None:
+    client.post("/api/faults", json={"type": "HIGH_RPM"})
+
+    logs = client.get("/api/logs").json()
+    csv = client.get("/api/logs/export", params={"format": "csv"})
+    js = client.get("/api/logs/export", params={"format": "json"})
+
+    assert any(e["event"] == "FAULT_INJECTED" for e in logs)
+    assert csv.headers["content-type"].startswith("text/csv")
+    assert "FAULT_INJECTED" in csv.text
+    assert js.headers["content-disposition"] == 'attachment; filename="events.json"'
+
+
+def test_can_trace_recording_and_download(client: TestClient) -> None:
+    started = client.post("/api/logs/trace", json={"action": "start"}).json()
+    time.sleep(0.5)
+    stopped = client.post("/api/logs/trace", json={"action": "stop"}).json()
+
+    assert started["recording"] is True and stopped["recording"] is False
+    assert stopped["frames"] > 10
+    names = [f["name"] for f in client.get("/api/logs/files").json()]
+    assert stopped["file"] in names
+    content = client.get(f"/api/logs/files/{stopped['file']}").text
+    assert content.splitlines()[0].startswith("(")  # candump: (timestamp) channel id#data
+    assert "#" in content
+
+
+def test_log_download_rejects_paths(client: TestClient) -> None:
+    for name in ("..%2Fpyproject.toml", "secret.txt", "nothing.log"):
+        assert client.get(f"/api/logs/files/{name}").status_code == 404
+
+
+def test_telemetry_stream_carries_events(client: TestClient) -> None:
+    with client.websocket_connect("/ws/telemetry") as ws:
+        first = ws.receive_json()
+        client.post("/api/faults", json={"type": "HIGH_RPM"})
+        later = [ws.receive_json() for _ in range(4)]
+
+    assert any(e["event"] == "SIMULATION_START" for e in first["events"])
+    assert any(e["event"] == "FAULT_INJECTED" for m in later for e in m["events"])
+    assert {"faults", "diagnostics", "bus_down"} <= set(first)

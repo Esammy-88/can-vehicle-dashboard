@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     codec = CanCodec(load_database())
     factory = BusFactory(settings.can_mode, settings.can_channel)
-    runtime = SimulationRuntime(factory, codec)
+    runtime = SimulationRuntime(factory, codec, log_dir=settings.log_dir)
     runtime.start()
     app.state.runtime = runtime
     logging.getLogger(__name__).info(

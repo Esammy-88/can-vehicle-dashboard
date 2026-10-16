@@ -12,7 +12,12 @@ SAMPLE_SIGNALS = {
         "EngineRunning": 1,
         "EngineState": "CRUISING",
     },
-    "ENGINE_TEMPERATURE": {"CoolantTemp": 91, "OilTemp": 104},
+    "ENGINE_TEMPERATURE": {
+        "CoolantTemp": 91,
+        "OilTemp": 104,
+        "EngineDtc": 0x0217,
+        "EngineDtcCount": 1,
+    },
     "VEHICLE_STATUS": {"VehicleSpeed": 82.37, "BrakeSwitch": 0},
     "TRANSMISSION_STATUS": {
         "GearSelector": "D",
@@ -20,6 +25,7 @@ SAMPLE_SIGNALS = {
         "TransTemp": 78,
         "TransFault": 0,
         "ShiftInProgress": 1,
+        "TransDtc": 0,
     },
     "BODY_STATUS": {
         "FuelLevel": 67.5,
@@ -84,7 +90,10 @@ def test_engine_rpm_byte_layout(codec: CanCodec) -> None:
 
 
 def test_temperature_offset_scaling(codec: CanCodec) -> None:
-    frame = codec.encode("ENGINE_TEMPERATURE", {"CoolantTemp": -40, "OilTemp": 0})
+    frame = codec.encode(
+        "ENGINE_TEMPERATURE",
+        {"CoolantTemp": -40, "OilTemp": 0, "EngineDtc": 0, "EngineDtcCount": 0},
+    )
 
     assert frame.data[0] == 0  # -40 degC is raw 0
     assert frame.data[1] == 40  # 0 degC is raw 40

@@ -19,6 +19,7 @@ router = APIRouter()
 TELEMETRY_INTERVAL_S = 0.05  # 20 Hz is smooth for gauges and light on the browser
 CAN_INTERVAL_S = 0.1
 CAN_INITIAL_FRAMES = 200
+TELEMETRY_INITIAL_EVENTS = 500
 
 
 @router.websocket("/ws/telemetry")
@@ -26,6 +27,8 @@ async def telemetry(websocket: WebSocket) -> None:
     await websocket.accept()
     runtime: SimulationRuntime = websocket.app.state.runtime
     sim, last_seq = None, 0
+    # Events outlive resets, so they are tracked separately; the backlog is sent on connect.
+    last_event = max(0, runtime.events.seq - TELEMETRY_INITIAL_EVENTS)
     try:
         while True:
             reset = runtime.sim is not sim
@@ -34,7 +37,12 @@ async def telemetry(websocket: WebSocket) -> None:
             samples = sim.history.since(last_seq)
             if samples:
                 last_seq = samples[-1]["seq"]
-            await websocket.send_json({**runtime.snapshot(), "samples": samples, "reset": reset})
+            events = runtime.events.since(last_event)
+            if events:
+                last_event = events[-1]["seq"]
+            await websocket.send_json(
+                {**runtime.snapshot(), "samples": samples, "events": events, "reset": reset}
+            )
             await asyncio.sleep(TELEMETRY_INTERVAL_S)
     except WebSocketDisconnect:
         pass  # client went away; nothing to clean up

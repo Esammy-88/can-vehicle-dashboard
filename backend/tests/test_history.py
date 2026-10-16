@@ -40,7 +40,7 @@ def test_samples_hold_can_decoded_values(sim: Simulator) -> None:
         sim.dashboard.view()["speed_kmh"], abs=2.0
     )  # <= 0.2 s old
     assert last["rpm"] > 1000
-    assert last["can_rate"] == 52.0
+    assert last["can_rate"] == 53.0
 
 
 def test_since_returns_only_newer_samples(sim: Simulator) -> None:

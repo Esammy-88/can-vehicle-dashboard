@@ -36,6 +36,7 @@ def load_settings() -> Settings:
     return Settings(
         can_mode=CanMode(os.environ.get("CAN_MODE", CanMode.AUTO).lower()),
         can_channel=os.environ.get("CAN_CHANNEL", "vcan0"),
+        log_dir=Path(os.environ.get("LOG_DIR", PROJECT_ROOT / "logs")),
     )
 
 

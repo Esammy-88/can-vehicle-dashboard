@@ -9,6 +9,7 @@ All times are simulation time, so statistics are deterministic in tests.
 from __future__ import annotations
 
 from collections import Counter, deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -70,9 +71,14 @@ class BusMonitor:
             for m in self.codec.messages
         }
         self._window: deque[_Seen] = deque()
+        # Raw-frame tap (e.g. trace recording) and timeout/restore edges for the event log.
+        self.tap: Callable[[can.Message], None] | None = None
+        self.edges: list[dict[str, Any]] = []
 
     def poll(self, now: float) -> None:
         while (frame := self.bus.recv(timeout=0)) is not None:
+            if self.tap is not None:
+                self.tap(frame)
             self._record(self.codec.decode(frame), now)
         while self._window and self._window[0].t <= now - RATE_WINDOW_S:
             self._window.popleft()
@@ -87,7 +93,9 @@ class BusMonitor:
             stats = self._ids[d.arbitration_id] = _IdStats(d.name, sender, None)
         stats.count += 1
         stats.last_seen = now
-        stats.timed_out = False
+        if stats.timed_out:
+            stats.timed_out = False
+            self.edges.append(self._edge("MESSAGE_RESTORED", d.arbitration_id, stats))
         if d.error is not None:
             stats.errors += 1
             self.errors_by_type[d.error.value] += 1
@@ -109,13 +117,18 @@ class BusMonitor:
         )
 
     def _check_timeouts(self, now: float) -> None:
-        for stats in self._ids.values():
+        for arb_id, stats in self._ids.items():
             if stats.cycle_s is None or stats.last_seen is None or stats.timed_out:
                 continue
             if now - stats.last_seen > TIMEOUT_CYCLES * stats.cycle_s:
                 stats.timed_out = True
+                self.edges.append(self._edge("MESSAGE_TIMEOUT", arb_id, stats))
                 stats.timeouts += 1
                 self.timeouts += 1
+
+    @staticmethod
+    def _edge(event: str, arb_id: int, stats: _IdStats) -> dict[str, Any]:
+        return {"event": event, "id": arb_id, "name": stats.name, "sender": stats.sender}
 
     def frames_since(self, seq: int, limit: int = 500) -> list[dict[str, Any]]:
         new = [f for f in self.frames if f["seq"] > seq]

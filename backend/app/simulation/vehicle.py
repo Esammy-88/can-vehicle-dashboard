@@ -59,6 +59,7 @@ class Actuators:
     """Commands from the ECUs to the plant."""
 
     fuel_enabled: bool = False  # ECM: injection + ignition
+    throttle: float = 0.0  # ECM: commanded throttle 0-100 % (drive-by-wire)
     torque_limit: float = 1.0  # ECM: 0-1, <1 in limp mode
     drive_gear: int | None = None  # TCM: 1-6, -1 reverse, None = no drive (P/N)
     park: bool = True  # TCM: parking pawl engaged
@@ -68,6 +69,7 @@ class Actuators:
 FUEL_TANK_L = 50.0
 # Consumption is sped up so the fuel gauge visibly moves during a short demo.
 FUEL_CONSUMPTION_SCALE = 10.0
+OVERSPEED_RPM = 7200.0
 
 
 @dataclass
@@ -83,6 +85,12 @@ class VehicleModel:
     odometer_km: float = 0.0
     engine_running: bool = False
 
+    # Physical faults, set by the fault injection system.
+    cooling_failure: bool = False  # engine radiator / water pump failure
+    trans_cooling_failure: bool = False  # transmission oil cooler failure
+    fuel_leak_lps: float = 0.0
+    overspeed: bool = False  # engine runs away past the rev limiter
+
     @property
     def speed_kmh(self) -> float:
         return abs(self.speed_ms) * 3.6
@@ -93,7 +101,8 @@ class VehicleModel:
 
     def step(self, dt: float, act: Actuators, driver: DriverInputs) -> None:
         fueled = act.fuel_enabled and self.fuel_l > 0.0
-        throttle = min(max(driver.throttle, 0.0), 100.0) / 100.0 if fueled else 0.0
+        # Drive-by-wire: the engine follows the ECM's throttle command, not the pedal.
+        throttle = min(max(act.throttle, 0.0), 100.0) / 100.0 if fueled else 0.0
         gear = act.drive_gear
 
         self._step_engine(dt, fueled, throttle, gear, act.torque_limit)
@@ -124,7 +133,7 @@ class VehicleModel:
         else:
             stall = p.IDLE_RPM + throttle * (p.STALL_RPM - p.IDLE_RPM)
             target = max(p.wheel_to_engine_rpm(self.speed_ms, gear), stall)
-        target = min(target, p.REV_LIMIT_RPM)
+        target = OVERSPEED_RPM if self.overspeed else min(target, p.REV_LIMIT_RPM)
         self.engine_rpm = p.first_order(self.engine_rpm, target, 0.25, dt)
 
         available = p.max_engine_torque(self.engine_rpm) * torque_limit
@@ -155,18 +164,29 @@ class VehicleModel:
     def _step_thermal(self, dt: float, coupled: bool) -> None:
         if self.engine_running:
             # Thermostat holds coolant near 88 C; sustained load pushes it higher.
-            self.coolant_c = p.first_order(self.coolant_c, 88.0 + 14.0 * self.engine_load, 25.0, dt)
-            self.oil_c = p.first_order(self.oil_c, 90.0 + 25.0 * self.engine_load, 40.0, dt)
+            # A failed cooling system lets it climb far past the overheat point.
+            extra = 45.0 if self.cooling_failure else 0.0
+            self.coolant_c = p.first_order(
+                self.coolant_c, 88.0 + 14.0 * self.engine_load + extra, 25.0, dt
+            )
+            self.oil_c = p.first_order(
+                self.oil_c, 90.0 + 25.0 * self.engine_load + extra / 2, 40.0, dt
+            )
         else:
             self.coolant_c = p.first_order(self.coolant_c, p.AMBIENT_C, 180.0, dt)
             self.oil_c = p.first_order(self.oil_c, p.AMBIENT_C, 240.0, dt)
 
         if self.engine_running and coupled:
-            self.trans_c = p.first_order(self.trans_c, 65.0 + 30.0 * self.engine_load, 60.0, dt)
+            # Without the oil cooler the fluid heats quickly toward a much higher level.
+            extra, tau = (80.0, 20.0) if self.trans_cooling_failure else (0.0, 40.0)
+            self.trans_c = p.first_order(
+                self.trans_c, 65.0 + 30.0 * self.engine_load + extra, tau, dt
+            )
         else:
             self.trans_c = p.first_order(self.trans_c, p.AMBIENT_C, 240.0, dt)
 
     def _step_fuel(self, dt: float, throttle: float) -> None:
+        self.fuel_l = max(0.0, self.fuel_l - self.fuel_leak_lps * dt)
         if not self.engine_running:
             return
         litres_per_s = 0.00025 + 0.011 * throttle * self.engine_rpm / p.REV_LIMIT_RPM

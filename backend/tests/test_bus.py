@@ -34,7 +34,12 @@ def test_frames_travel_between_nodes(codec: CanCodec, channel: str) -> None:
     factory = BusFactory(CanMode.VIRTUAL, channel)
     ecm, ipc, bcm = factory.open(), factory.open(), factory.open()
     try:
-        ecm.send(codec.encode("ENGINE_TEMPERATURE", {"CoolantTemp": 90, "OilTemp": 100}))
+        ecm.send(
+            codec.encode(
+                "ENGINE_TEMPERATURE",
+                {"CoolantTemp": 90, "OilTemp": 100, "EngineDtc": 0, "EngineDtcCount": 0},
+            )
+        )
 
         for receiver in (ipc, bcm):
             frame = receiver.recv(timeout=1.0)

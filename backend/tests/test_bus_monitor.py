@@ -14,7 +14,7 @@ EXPECTED_RATES = {
     0x201: 10.0,
     0x300: 5.0,
     0x400: 5.0,
-    0x500: 0.0,  # DIAG node not simulated yet
+    0x500: 1.0,
 }
 
 
@@ -51,8 +51,9 @@ def test_per_ecu_rates_and_active_nodes(sim: Simulator) -> None:
         "TCM": 30.0,
         "BCM": 5.0,
         "IPC": 5.0,
+        "DIAG": 1.0,
     }
-    assert stats["active_nodes"] == ["BCM", "ECM", "IPC", "TCM"]
+    assert stats["active_nodes"] == ["BCM", "DIAG", "ECM", "IPC", "TCM"]
 
 
 def test_bus_load(sim: Simulator) -> None:
@@ -60,7 +61,7 @@ def test_bus_load(sim: Simulator) -> None:
 
     stats = sim.monitor.stats(sim.time)
 
-    expected = 52 * 111 / BITRATE_BPS * 100
+    expected = 53 * 111 / BITRATE_BPS * 100
     assert stats["bus_load_pct"] == pytest.approx(expected, abs=0.01)
 
 
@@ -79,7 +80,10 @@ def test_frames_are_decoded_records(sim: Simulator) -> None:
 
 def test_bad_frames_are_counted_by_type(monitor, codec: CanCodec) -> None:
     m, tx = monitor
-    good = codec.encode("ENGINE_TEMPERATURE", {"CoolantTemp": 90, "OilTemp": 95})
+    good = codec.encode(
+        "ENGINE_TEMPERATURE",
+        {"CoolantTemp": 90, "OilTemp": 95, "EngineDtc": 0, "EngineDtcCount": 0},
+    )
     corrupted = can.Message(arbitration_id=0x101, data=bytes(8), is_extended_id=False)
     unknown = can.Message(arbitration_id=0x7AB, data=bytes(8), is_extended_id=False)
     for frame in (good, corrupted, unknown):
@@ -96,7 +100,10 @@ def test_bad_frames_are_counted_by_type(monitor, codec: CanCodec) -> None:
 
 def test_timeout_is_counted_once_and_clears_on_recovery(monitor, codec: CanCodec) -> None:
     m, tx = monitor
-    frame = codec.encode("ENGINE_TEMPERATURE", {"CoolantTemp": 90, "OilTemp": 95})  # 500 ms cycle
+    frame = codec.encode(
+        "ENGINE_TEMPERATURE",
+        {"CoolantTemp": 90, "OilTemp": 95, "EngineDtc": 0, "EngineDtcCount": 0},
+    )  # 500 ms cycle
 
     tx.send(frame)
     m.poll(0.0)

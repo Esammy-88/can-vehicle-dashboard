@@ -63,12 +63,83 @@ export interface SimulationStatus {
   crashed_ecus: string[];
 }
 
+export interface ActiveFault {
+  type: string;
+  target: string | null;
+  label: string;
+  since: number;
+}
+
+export interface FaultCatalogEntry {
+  type: string;
+  label: string;
+  description: string;
+  targets: string[];
+}
+
+export interface EcuHealth {
+  node: string;
+  name: string;
+  online: boolean;
+  last_message: string | null;
+  last_seen_ago_s: number | null;
+  timeouts: number;
+  counter_errors: number;
+}
+
+export interface DtcRecord {
+  code: string;
+  ecu: string;
+  description: string;
+  set_at: number;
+  cleared_at: number | null;
+}
+
+export interface Diagnostics {
+  ecus: EcuHealth[];
+  last_frame_ago_s: number | null;
+  active_dtcs: DtcRecord[];
+  dtc_history: DtcRecord[];
+}
+
+export interface BusSummary {
+  messages_per_s: number;
+  errors: number;
+  total_frames: number;
+}
+
 export interface Snapshot {
   simulation: SimulationStatus;
   can_backend: "socketcan" | "virtual";
   can_mode: "auto" | "socketcan" | "virtual";
   cluster: Cluster;
   controls: Controls;
+  faults: ActiveFault[];
+  diagnostics: Diagnostics;
+  bus_down: boolean;
+  bus: BusSummary;
+}
+
+export interface LogEvent {
+  seq: number;
+  timestamp: string;
+  sim_time: number;
+  severity: Severity;
+  event: string;
+  source: string;
+  message: string;
+  details: Record<string, unknown>;
+}
+
+export interface TraceStatus {
+  recording: boolean;
+  file: string | null;
+  frames: number;
+}
+
+export interface LogFile {
+  name: string;
+  bytes: number;
 }
 
 export type ControlsUpdate = Partial<Omit<Controls, "doors_open">> & {
@@ -90,6 +161,7 @@ export interface HistorySample {
 
 export interface TelemetryMessage extends Snapshot {
   samples: HistorySample[];
+  events: LogEvent[];
   reset: boolean;
 }
 
