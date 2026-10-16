@@ -93,15 +93,6 @@ export const FuelIcon = (p: IconProps) => (
   </Icon>
 );
 
-export const NetworkIcon = (p: IconProps) => (
-  <Icon {...p}>
-    <path d="M3 12h18M7 12V7M12 12V7M17 12v5" />
-    <circle cx="7" cy="5" r="2" />
-    <circle cx="12" cy="5" r="2" />
-    <circle cx="17" cy="19" r="2" />
-  </Icon>
-);
-
 export const GearboxIcon = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="12" cy="12" r="3" />

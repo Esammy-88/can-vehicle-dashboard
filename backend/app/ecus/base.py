@@ -48,7 +48,6 @@ class Ecu(ABC):
         ]
         self._rx_period = {m.name: m.cycle_time / 1000.0 for m in codec.messages}
         self._rx: dict[str, _RxEntry] = {}
-        self.frames_sent = 0
         self.rx_errors = 0
         self.tx_enabled = True  # False while the bus is down: frames are lost on the wire
         self.suppressed: set[str] = set()  # messages this ECU has stopped sending (fault)
@@ -106,7 +105,6 @@ class Ecu(ABC):
                 slot.counter = (slot.counter + 1) % COUNTER_MODULO
                 if self.tx_enabled:
                     self.bus.send(frame)
-                    self.frames_sent += 1
             slot.next_due += slot.period_s
             if slot.next_due + _TIME_EPSILON <= now:
                 slot.next_due = now + slot.period_s  # fell behind: resync instead of bursting

@@ -138,6 +138,16 @@ npm install
 cd ..
 ```
 
+**Windows notes:**
+
+- If `python` opens the Microsoft Store, Python isn't on your PATH. Use the
+  launcher instead: `py -m venv .venv`.
+- If PowerShell refuses to run `activate` or `npm` ("running scripts is
+  disabled on this system"), run this once:
+  `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+  Alternatively, call `npm.cmd` instead of `npm`.
+- Quote paths that contain spaces: `cd "C:\My Projects\can-vehicle-dashboard"`.
+
 **Optional, Linux only:** use a real SocketCAN interface instead of the
 software bus:
 

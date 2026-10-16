@@ -41,7 +41,10 @@ export function useStream<T>(
       };
     };
 
-    connect();
+    // Connect on the next tick: React's development double-mount runs the
+    // cleanup synchronously, so the throwaway mount never opens a socket
+    // (closing one mid-handshake makes the browser log a warning).
+    retryTimer = setTimeout(connect, 0);
     return () => {
       disposed = true;
       clearTimeout(retryTimer);
