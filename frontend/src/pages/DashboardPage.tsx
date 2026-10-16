@@ -125,8 +125,9 @@ export default function DashboardPage({ snapshot }: { snapshot: Snapshot | null 
             controls={snapshot?.controls ?? null}
             cluster={c}
             simulation={snapshot?.simulation ?? null}
+            demo={snapshot?.demo ?? null}
           />
-          <FaultPanel active={snapshot?.faults ?? null} />
+          <FaultPanel active={snapshot?.faults ?? null} locked={snapshot?.demo.active ?? false} />
         </aside>
       </div>
     </div>

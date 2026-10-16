@@ -20,6 +20,7 @@ from app.can.bus import BusFactory
 from app.can.decoder import CanCodec
 from app.monitoring.can_trace import CanTraceRecorder
 from app.monitoring.event_log import EventLog
+from app.simulation.demo import DemoDirector
 from app.simulation.simulator import TICK_S, Simulator
 
 log = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ class SimulationRuntime:
             f"Simulation started on {factory.backend} CAN bus",
             0.0,
         )
+        self.demo: DemoDirector | None = None
         self.running = True
         self.speed = 1.0
         self._task: asyncio.Task[None] | None = None
@@ -76,9 +78,39 @@ class SimulationRuntime:
         self.running = False
 
     def reset(self) -> None:
+        if self.demo is not None:
+            self.demo.stop()
+            self.demo = None
         self.sim.close()
         self.sim = self._new_simulator()
         self.events.add("SIMULATION_RESET", "INFO", "SYSTEM", "Simulation reset", 0.0)
+
+    @property
+    def demo_active(self) -> bool:
+        return self.demo is not None and self.demo.active
+
+    def start_demo(self) -> None:
+        """Restart from a fresh simulation and let the demo director drive."""
+        self.reset()
+        self.demo = DemoDirector(self.sim)
+        self.running = True
+
+    def stop_demo(self) -> None:
+        if self.demo is not None:
+            self.demo.stop()
+
+    def demo_status(self) -> dict[str, Any]:
+        if self.demo is None:
+            return {
+                "active": False,
+                "finished": False,
+                "step": 0,
+                "total": 0,
+                "title": None,
+                "caption": None,
+                "elapsed_s": 0.0,
+            }
+        return self.demo.status()
 
     def _new_simulator(self) -> Simulator:
         sim = Simulator(self.factory, self._codec, self._seed, events=self.events)
@@ -109,6 +141,7 @@ class SimulationRuntime:
             "faults": self.sim.faults.to_list(),
             "diagnostics": self.sim.diagnostics.view(self.sim.time),
             "bus_down": self.sim.bus_down,
+            "demo": self.demo_status(),
             "bus": {
                 "messages_per_s": self.sim.monitor.message_rate(),
                 "errors": sum(self.sim.monitor.errors_by_type.values()),
@@ -134,6 +167,8 @@ class SimulationRuntime:
             try:
                 for _ in range(ticks):
                     self.sim.step()
+                    if self.demo is not None:
+                        self.demo.step()
             except Exception:
                 log.exception("Simulation step failed; pausing")
                 self.running = False

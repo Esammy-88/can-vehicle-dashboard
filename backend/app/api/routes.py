@@ -31,6 +31,16 @@ def get_runtime(request: Request) -> SimulationRuntime:
 Runtime = Annotated[SimulationRuntime, Depends(get_runtime)]
 
 
+def manual_runtime(runtime: Runtime) -> SimulationRuntime:
+    """The runtime, for endpoints that would fight the Demo Mode director."""
+    if runtime.demo_active:
+        raise HTTPException(status_code=409, detail="Demo Mode is running; stop it to take control")
+    return runtime
+
+
+ManualRuntime = Annotated[SimulationRuntime, Depends(manual_runtime)]
+
+
 class HealthResponse(BaseModel):
     status: str
     app: str
@@ -72,7 +82,7 @@ class ControlsUpdate(BaseModel):
 
 
 @router.post("/controls")
-async def update_controls(update: ControlsUpdate, runtime: Runtime) -> dict[str, Any]:
+async def update_controls(update: ControlsUpdate, runtime: ManualRuntime) -> dict[str, Any]:
     driver = runtime.sim.driver
     changes = update.model_dump(exclude_none=True)
     driver.doors_open.update(changes.pop("doors_open", {}))
@@ -119,6 +129,23 @@ async def history(
     return runtime.sim.history.window(seconds)
 
 
+# --- Demo Mode -----------------------------------------------------------------
+
+
+@router.get("/demo")
+async def demo_status(runtime: Runtime) -> dict[str, Any]:
+    return runtime.demo_status()
+
+
+@router.post("/demo/{action}")
+async def demo_action(action: Literal["start", "stop"], runtime: Runtime) -> dict[str, Any]:
+    if action == "start":
+        runtime.start_demo()
+    else:
+        runtime.stop_demo()
+    return runtime.demo_status()
+
+
 # --- Fault injection ---------------------------------------------------------
 
 
@@ -144,7 +171,7 @@ async def list_faults(runtime: Runtime) -> dict[str, Any]:
 
 
 @router.post("/faults")
-async def inject_fault(request: FaultRequest, runtime: Runtime) -> list[dict[str, Any]]:
+async def inject_fault(request: FaultRequest, runtime: ManualRuntime) -> list[dict[str, Any]]:
     try:
         runtime.sim.faults.inject(request.type, request.target)
     except FaultError as exc:
@@ -154,7 +181,7 @@ async def inject_fault(request: FaultRequest, runtime: Runtime) -> list[dict[str
 
 @router.delete("/faults/{fault_type}")
 async def clear_fault(
-    fault_type: FaultType, runtime: Runtime, target: str | None = None
+    fault_type: FaultType, runtime: ManualRuntime, target: str | None = None
 ) -> list[dict[str, Any]]:
     if not runtime.sim.faults.clear(fault_type, target):
         raise HTTPException(status_code=404, detail="Fault is not active")
@@ -162,7 +189,7 @@ async def clear_fault(
 
 
 @router.delete("/faults")
-async def clear_all_faults(runtime: Runtime) -> list[dict[str, Any]]:
+async def clear_all_faults(runtime: ManualRuntime) -> list[dict[str, Any]]:
     runtime.sim.faults.clear_all()
     return runtime.sim.faults.to_list()
 

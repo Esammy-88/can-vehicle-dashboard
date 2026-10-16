@@ -5,9 +5,10 @@ Transmission, Body, Instrument Cluster) exchange DBC-encoded CAN 2.0 frames over
 a virtual bus, and a React dashboard visualises the traffic, vehicle state,
 faults and diagnostics in real time. No physical hardware is required.
 
-> **Status:** Phase 6 — faults and diagnostics. Live dashboard, CAN monitor,
-> graphs, ten injectable faults, an ECU watchdog, diagnostic trouble codes, a
-> diagnostics page and an event log. Demo mode comes next.
+> **Status:** Phase 7 — Demo Mode. Live dashboard, CAN monitor, graphs, ten
+> injectable faults, an ECU watchdog, diagnostic trouble codes, a diagnostics
+> page, an event log and an automated demo sequence. Polish, CI and
+> screenshots come next.
 
 ## Architecture
 
@@ -72,6 +73,7 @@ To run the ECU network without a browser, printing values decoded from CAN:
 
 ```bash
 python scripts/start_simulation.py          # scripted ~60 s drive in real time
+python scripts/start_simulation.py --demo   # the Demo Mode sequence, faults included
 python scripts/can_demo.py                  # a few frames, including bad ones
 ```
 
@@ -96,6 +98,7 @@ python scripts/can_demo.py                  # a few frames, including bad ones
 | `GET /api/logs`, `GET /api/logs/export?format=json\|csv` | Event log and export |
 | `POST /api/logs/trace` | `{"action": "start" \| "stop"}` CAN trace recording |
 | `GET /api/logs/files[/{name}]` | List / download event logs and traces |
+| `POST /api/demo/{start,stop}`, `GET /api/demo` | Demo Mode control and progress |
 
 Interactive API docs are at http://localhost:8000/docs.
 
@@ -157,7 +160,17 @@ _Coming in Phase 8._
 
 ## Demo
 
-_Coming in Phase 7._
+**Demo Mode** (*Simulation → Run demo* on the Dashboard) plays a scripted
+drive with no input needed. The engine starts, the car pulls away, shifts up
+to 120 km/h, cruises, brakes and parks. Then the demo injects an engine
+overheat, which the ECM detects (OVERHEAT, DTC P0217). It also cuts the
+transmission ECU off the bus: the watchdog reports a timeout and DTC U0101,
+then sees communication recover. Finally the fault clears.
+
+A banner on every page shows the step and what to look at. The whole run
+takes about 110 s of simulated time and is the same every time, which makes it
+suitable for recording a demo video. Details and recording tips are in
+[docs/demo-mode.md](docs/demo-mode.md).
 
 ## License
 

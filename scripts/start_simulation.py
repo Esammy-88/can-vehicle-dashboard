@@ -3,6 +3,7 @@
 Run from the repository root:
     python scripts/start_simulation.py           # full ~60 s drive
     python scripts/start_simulation.py --fast    # same drive, no real-time waiting
+    python scripts/start_simulation.py --demo    # Demo Mode sequence (with faults)
 
 Values printed come from a passive CAN sniffer decoding the bus traffic, the
 same way the dashboard will see them, not from the simulation internals.
@@ -14,6 +15,7 @@ import argparse
 import sys
 import time
 from collections import Counter
+from collections.abc import Iterator
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
@@ -22,6 +24,7 @@ from app.can.bus import BusFactory  # noqa: E402
 from app.can.dbc_loader import load_database  # noqa: E402
 from app.can.decoder import CanCodec  # noqa: E402
 from app.config import settings  # noqa: E402
+from app.simulation.demo import DemoDirector  # noqa: E402
 from app.simulation.simulator import TICK_S, Simulator  # noqa: E402
 from app.simulation.vehicle import DriverInputs, Headlights, Selector  # noqa: E402
 
@@ -51,10 +54,34 @@ def apply(driver: DriverInputs, changes: dict) -> None:
         setattr(driver, key, value)
 
 
+def drive_ticks(sim: Simulator) -> Iterator[str]:
+    """The fixed drive: yields the phase label once per tick."""
+    for duration, label, changes in DRIVE:
+        apply(sim.driver, changes)
+        for _ in range(round(duration / TICK_S)):
+            yield label
+
+
+def demo_ticks(sim: Simulator) -> Iterator[str]:
+    """The Demo Mode director, announcing each step as it starts."""
+    director = DemoDirector(sim)
+    shown = -1
+    while director.active:
+        if director.index != shown:
+            shown = director.index
+            step = director.steps[shown]
+            print(f"\n==> {shown + 1}/{len(director.steps)} {step.title}: {step.caption}")
+        yield director.steps[shown].title
+        director.step()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--fast", action="store_true", help="do not wait for wall-clock time")
+    parser.add_argument("--demo", action="store_true", help="run the Demo Mode sequence")
     args = parser.parse_args()
+    # Captions contain "→"; don't crash on consoles or pipes that can't show it.
+    sys.stdout.reconfigure(errors="replace")  # type: ignore[union-attr]
 
     codec = CanCodec(load_database())
     factory = BusFactory(settings.can_mode, settings.can_channel)
@@ -66,20 +93,19 @@ def main() -> None:
     with Simulator(factory, codec) as sim:
         print(HEADER)
         deadline = time.perf_counter()
-        for duration, label, changes in DRIVE:
-            apply(sim.driver, changes)
-            for tick in range(round(duration / TICK_S)):
-                sim.step()
-                while (frame := sniffer.recv(timeout=0)) is not None:
-                    decoded = codec.decode(frame)
-                    counts[decoded.name or f"0x{decoded.arbitration_id:03X}"] += 1
-                    if decoded.ok:
-                        latest[decoded.name] = decoded.signals
-                if tick % 50 == 49 and len(latest) >= 4:
-                    print_row(sim.time, label, latest)
-                if not args.fast:
-                    deadline += TICK_S
-                    time.sleep(max(0.0, deadline - time.perf_counter()))
+        ticks = demo_ticks(sim) if args.demo else drive_ticks(sim)
+        for tick, label in enumerate(ticks):
+            sim.step()
+            while (frame := sniffer.recv(timeout=0)) is not None:
+                decoded = codec.decode(frame)
+                counts[decoded.name or f"0x{decoded.arbitration_id:03X}"] += 1
+                if decoded.ok:
+                    latest[decoded.name] = decoded.signals
+            if tick % 50 == 49 and len(latest) >= 4:
+                print_row(sim.time, label, latest)
+            if not args.fast:
+                deadline += TICK_S
+                time.sleep(max(0.0, deadline - time.perf_counter()))
         elapsed = sim.time
     sniffer.shutdown()
 
@@ -95,7 +121,7 @@ def print_row(t: float, label: str, latest: dict[str, dict]) -> None:
     tr = latest.get("TRANSMISSION_STATUS", {})
     body = latest.get("BODY_STATUS", {})
     print(
-        f"{t:5.1f}  {label:<15} {eng.get('EngineState', '-'):<12} "
+        f"{t:5.1f}  {label[:15]:<15} {eng.get('EngineState', '-'):<12} "
         f"{tr.get('GearSelector', '-'):>3} {tr.get('CurrentGear', 0) or '-':>4} "
         f"{veh.get('VehicleSpeed', 0):6.1f} {eng.get('EngineRPM', 0):5.0f} "
         f"{eng.get('EngineLoad', 0):4.0f} {temp.get('CoolantTemp', 0):4.0f} "

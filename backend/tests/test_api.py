@@ -255,3 +255,32 @@ def test_telemetry_stream_carries_events(client: TestClient) -> None:
     assert any(e["event"] == "SIMULATION_START" for e in first["events"])
     assert any(e["event"] == "FAULT_INJECTED" for m in later for e in m["events"])
     assert {"faults", "diagnostics", "bus_down"} <= set(first)
+
+
+def test_demo_mode_start_lock_and_stop(client: TestClient) -> None:
+    status = client.post("/api/demo/start").json()
+    assert status["active"] is True
+    assert status["step"] == 1
+
+    state = wait_for(client, lambda s: s["demo"]["step"] >= 2, timeout=10.0)
+    assert state["demo"]["title"]
+    assert state["controls"]["ignition"] is True
+    # Manual inputs would fight the director, so they are refused while it runs.
+    assert client.post("/api/controls", json={"throttle": 50}).status_code == 409
+    assert client.post("/api/faults", json={"type": "LOW_FUEL"}).status_code == 409
+    assert client.delete("/api/faults").status_code == 409
+
+    stopped = client.post("/api/demo/stop").json()
+    assert stopped["active"] is False
+    assert client.post("/api/controls", json={"throttle": 0}).status_code == 200
+    assert client.get("/api/demo").json()["active"] is False
+
+
+def test_reset_ends_the_demo(client: TestClient) -> None:
+    client.post("/api/demo/start")
+
+    client.post("/api/simulation/reset")
+
+    demo = client.get("/api/demo").json()
+    assert demo == {**demo, "active": False, "step": 0}
+    assert client.post("/api/controls", json={"ignition": True}).status_code == 200

@@ -1,3 +1,4 @@
+import DemoBanner from "./components/DemoBanner";
 import StatusIndicator from "./components/StatusIndicator";
 import { useHashRoute, type Route } from "./hooks/useHashRoute";
 import { useTelemetry } from "./hooks/useTelemetry";
@@ -87,6 +88,8 @@ export default function App() {
           </code>
         </div>
       )}
+
+      <DemoBanner demo={snapshot?.demo} />
 
       {route === "dashboard" && <DashboardPage snapshot={snapshot} />}
       {route === "monitor" && <CanMonitorPage />}

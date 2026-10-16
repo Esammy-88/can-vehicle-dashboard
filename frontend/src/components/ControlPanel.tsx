@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from "react";
-import { setSimulationSpeed, simulationAction, updateControls } from "../services/api";
+import { demoAction, setSimulationSpeed, simulationAction, updateControls } from "../services/api";
 import type {
   Cluster,
   Controls,
+  DemoStatus,
   ControlsUpdate,
   DoorName,
   Headlights,
@@ -170,9 +171,10 @@ interface ControlPanelProps {
   controls: Controls | null;
   cluster: Cluster | null;
   simulation: SimulationStatus | null;
+  demo: DemoStatus | null;
 }
 
-export default function ControlPanel({ controls, cluster, simulation }: ControlPanelProps) {
+export default function ControlPanel({ controls, cluster, simulation, demo }: ControlPanelProps) {
   if (!controls || !cluster || !simulation) {
     return (
       <Section title="Controls">
@@ -181,77 +183,84 @@ export default function ControlPanel({ controls, cluster, simulation }: ControlP
     );
   }
   const hint = selectorHint(controls, cluster);
+  const demoActive = demo?.active ?? false;
 
   return (
     <div className="space-y-6">
       <Section title="Driver">
-        <Row label="Ignition">
-          <button
-            type="button"
-            onClick={() => send({ ignition: !controls.ignition })}
-            aria-pressed={controls.ignition}
-            className={`rounded-md px-4 py-1.5 text-sm font-semibold transition-colors ${
-              controls.ignition
-                ? "bg-sky-500 text-slate-950 hover:bg-sky-400"
-                : "border border-slate-600 text-slate-200 hover:bg-slate-800"
-            }`}
-          >
-            {controls.ignition ? "ON" : "OFF"}
-          </button>
-        </Row>
-        <Pedal label="Throttle" value={controls.throttle} onChange={(v) => send({ throttle: v })} />
-        <Pedal label="Brake" value={controls.brake} onChange={(v) => send({ brake: v })} />
-        <div>
-          <Row label="Gear selector">
-            <Segmented<Selector>
-              options={["P", "R", "N", "D"]}
-              value={cluster.selector ?? undefined}
-              onChange={(v) => send({ gear_selector: v })}
+        {demoActive && (
+          <p className="text-sm text-slate-400">Demo Mode is driving. Stop the demo to take control.</p>
+        )}
+        {/* A disabled fieldset disables every control inside it. */}
+        <fieldset disabled={demoActive} className={`space-y-4 ${demoActive ? "opacity-50" : ""}`}>
+          <Row label="Ignition">
+            <button
+              type="button"
+              onClick={() => send({ ignition: !controls.ignition })}
+              aria-pressed={controls.ignition}
+              className={`rounded-md px-4 py-1.5 text-sm font-semibold transition-colors ${
+                controls.ignition
+                  ? "bg-sky-500 text-slate-950 hover:bg-sky-400"
+                  : "border border-slate-600 text-slate-200 hover:bg-slate-800"
+              }`}
+            >
+              {controls.ignition ? "ON" : "OFF"}
+            </button>
+          </Row>
+          <Pedal label="Throttle" value={controls.throttle} onChange={(v) => send({ throttle: v })} />
+          <Pedal label="Brake" value={controls.brake} onChange={(v) => send({ brake: v })} />
+          <div>
+            <Row label="Gear selector">
+              <Segmented<Selector>
+                options={["P", "R", "N", "D"]}
+                value={cluster.selector ?? undefined}
+                onChange={(v) => send({ gear_selector: v })}
+              />
+            </Row>
+            {hint && <p className="mt-1.5 text-right text-xs text-slate-400">{hint}</p>}
+          </div>
+          <Row label="Headlights">
+            <Segmented<Headlights>
+              options={["OFF", "LOW", "HIGH"]}
+              value={controls.headlights}
+              onChange={(v) => send({ headlights: v })}
             />
           </Row>
-          {hint && <p className="mt-1.5 text-right text-xs text-slate-400">{hint}</p>}
-        </div>
-        <Row label="Headlights">
-          <Segmented<Headlights>
-            options={["OFF", "LOW", "HIGH"]}
-            value={controls.headlights}
-            onChange={(v) => send({ headlights: v })}
-          />
-        </Row>
-        <Row label="Indicators">
-          <Segmented<TurnIndicator>
-            options={["OFF", "LEFT", "RIGHT", "HAZARD"]}
-            value={controls.turn_indicator}
-            onChange={(v) => send({ turn_indicator: v })}
-            render={(v) => INDICATOR_LABELS[v]}
-          />
-        </Row>
-        <Row label="Doors open">
-          <div className="flex gap-1">
-            {DOOR_LABELS.map(([door, label]) => (
-              <button
-                key={door}
-                type="button"
-                aria-pressed={controls.doors_open[door]}
-                onClick={() => send({ doors_open: { [door]: !controls.doors_open[door] } })}
-                className={`w-10 rounded-md border py-1 text-sm font-medium ${
-                  controls.doors_open[door]
-                    ? "border-slate-500 bg-slate-700 text-slate-50"
-                    : "border-slate-700 text-slate-400 hover:bg-slate-800"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </Row>
-        <Row label="Seatbelt fastened">
-          <Toggle
-            label="Seatbelt fastened"
-            on={controls.seatbelt_fastened}
-            onChange={(on) => send({ seatbelt_fastened: on })}
-          />
-        </Row>
+          <Row label="Indicators">
+            <Segmented<TurnIndicator>
+              options={["OFF", "LEFT", "RIGHT", "HAZARD"]}
+              value={controls.turn_indicator}
+              onChange={(v) => send({ turn_indicator: v })}
+              render={(v) => INDICATOR_LABELS[v]}
+            />
+          </Row>
+          <Row label="Doors open">
+            <div className="flex gap-1">
+              {DOOR_LABELS.map(([door, label]) => (
+                <button
+                  key={door}
+                  type="button"
+                  aria-pressed={controls.doors_open[door]}
+                  onClick={() => send({ doors_open: { [door]: !controls.doors_open[door] } })}
+                  className={`w-10 rounded-md border py-1 text-sm font-medium ${
+                    controls.doors_open[door]
+                      ? "border-slate-500 bg-slate-700 text-slate-50"
+                      : "border-slate-700 text-slate-400 hover:bg-slate-800"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </Row>
+          <Row label="Seatbelt fastened">
+            <Toggle
+              label="Seatbelt fastened"
+              on={controls.seatbelt_fastened}
+              onChange={(on) => send({ seatbelt_fastened: on })}
+            />
+          </Row>
+        </fieldset>
       </Section>
 
       <Section title="Simulation">
@@ -272,6 +281,19 @@ export default function ControlPanel({ controls, cluster, simulation }: ControlP
               Reset
             </button>
           </div>
+        </Row>
+        <Row label="Demo Mode">
+          <button
+            type="button"
+            onClick={() => demoAction(demoActive ? "stop" : "start").catch(console.error)}
+            className={
+              demoActive
+                ? "rounded-md border border-slate-600 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
+                : "rounded-md bg-sky-500 px-3 py-1 text-sm font-semibold text-slate-950 hover:bg-sky-400"
+            }
+          >
+            {demoActive ? "Stop demo" : "Run demo"}
+          </button>
         </Row>
         <Row label="Speed">
           <Segmented<SpeedFactor>

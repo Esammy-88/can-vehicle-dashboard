@@ -179,7 +179,7 @@ export default function DiagnosticsPage({ snapshot, events }: { snapshot: Snapsh
       </div>
 
       <aside>
-        <FaultPanel active={snapshot.faults} />
+        <FaultPanel active={snapshot.faults} locked={snapshot.demo.active} />
       </aside>
     </div>
   );

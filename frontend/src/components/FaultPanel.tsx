@@ -9,9 +9,10 @@ function report(promise: Promise<unknown>) {
 interface FaultRowProps {
   fault: FaultCatalogEntry;
   active: ActiveFault[];
+  locked: boolean;
 }
 
-function FaultRow({ fault, active }: FaultRowProps) {
+function FaultRow({ fault, active, locked }: FaultRowProps) {
   const [target, setTarget] = useState(fault.targets[0] ?? null);
   const instance = active.find((a) => a.type === fault.type && a.target === target);
   const otherTargets = active.filter((a) => a.type === fault.type && a.target !== target);
@@ -34,6 +35,7 @@ function FaultRow({ fault, active }: FaultRowProps) {
       </div>
       {fault.targets.length > 0 && (
         <select
+          disabled={locked}
           value={target ?? ""}
           onChange={(e) => setTarget(e.target.value)}
           aria-label={`${fault.label} target`}
@@ -46,9 +48,10 @@ function FaultRow({ fault, active }: FaultRowProps) {
       )}
       <button
         type="button"
+        disabled={locked}
         onClick={() => report(instance ? clearFault(fault.type, target) : injectFault(fault.type, target))}
         aria-pressed={Boolean(instance)}
-        className={`w-16 shrink-0 rounded-md py-1 text-xs font-semibold transition-colors ${
+        className={`w-16 shrink-0 rounded-md py-1 text-xs font-semibold transition-colors disabled:opacity-40 ${
           instance
             ? "bg-status-critical text-white hover:brightness-110"
             : "border border-slate-600 text-slate-200 hover:bg-slate-800"
@@ -62,7 +65,8 @@ function FaultRow({ fault, active }: FaultRowProps) {
 
 // Fault injection: every fault from the backend catalogue, with a target
 // picker for the ones that apply to a single ECU or message.
-export default function FaultPanel({ active }: { active: ActiveFault[] | null }) {
+// While Demo Mode runs, the director owns the faults (`locked`).
+export default function FaultPanel({ active, locked }: { active: ActiveFault[] | null; locked: boolean }) {
   const [catalog, setCatalog] = useState<FaultCatalogEntry[] | null>(null);
   const connected = active !== null;
 
@@ -81,7 +85,7 @@ export default function FaultPanel({ active }: { active: ActiveFault[] | null })
         </h2>
         <button
           type="button"
-          disabled={!active?.length}
+          disabled={locked || !active?.length}
           onClick={() => report(clearAllFaults())}
           className="rounded-md border border-slate-600 px-2.5 py-0.5 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-40"
         >
@@ -93,7 +97,7 @@ export default function FaultPanel({ active }: { active: ActiveFault[] | null })
       ) : (
         <ul className="mt-2 divide-y divide-slate-800/80">
           {catalog.map((fault) => (
-            <FaultRow key={fault.type} fault={fault} active={active} />
+            <FaultRow key={fault.type} fault={fault} active={active} locked={locked} />
           ))}
         </ul>
       )}

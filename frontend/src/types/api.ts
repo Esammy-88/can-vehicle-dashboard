@@ -108,6 +108,17 @@ export interface BusSummary {
   total_frames: number;
 }
 
+/** Demo Mode progress; step is 1-based, 0 when no demo has run. */
+export interface DemoStatus {
+  active: boolean;
+  finished: boolean;
+  step: number;
+  total: number;
+  title: string | null;
+  caption: string | null;
+  elapsed_s: number;
+}
+
 export interface Snapshot {
   simulation: SimulationStatus;
   can_backend: "socketcan" | "virtual";
@@ -118,6 +129,7 @@ export interface Snapshot {
   diagnostics: Diagnostics;
   bus_down: boolean;
   bus: BusSummary;
+  demo: DemoStatus;
 }
 
 export interface LogEvent {

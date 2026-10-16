@@ -34,3 +34,11 @@ def test_start_simulation_script_fast() -> None:
 
     assert "ACCELERATING" in out
     assert "VEHICLE_STATUS" in out and "20.0 /s" in out
+
+
+def test_start_simulation_script_demo() -> None:
+    out = run(str(SCRIPTS / "start_simulation.py"), "--demo", "--fast")
+
+    assert "==> 1/14 Start vehicle" in out
+    assert "==> 14/14 Fault clears" in out
+    assert "OVERHEAT" in out

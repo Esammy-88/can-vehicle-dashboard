@@ -2,6 +2,7 @@ import type {
   ActiveFault,
   Controls,
   ControlsUpdate,
+  DemoStatus,
   Diagnostics,
   FaultCatalogEntry,
   LogFile,
@@ -32,6 +33,10 @@ export function simulationAction(action: "start" | "pause" | "reset"): Promise<S
 
 export function setSimulationSpeed(factor: SpeedFactor): Promise<SimulationStatus> {
   return send("PUT", "/api/simulation/speed", { factor });
+}
+
+export function demoAction(action: "start" | "stop"): Promise<DemoStatus> {
+  return send("POST", `/api/demo/${action}`);
 }
 
 export function streamUrl(path: "/ws/telemetry" | "/ws/can"): string {
