@@ -41,7 +41,8 @@ class _IdStats:
     count: int = 0
     errors: int = 0
     timeouts: int = 0
-    last_seen: float | None = None
+    last_seen: float | None = None  # any frame with this ID
+    last_valid: float | None = None  # a frame that decoded cleanly
     timed_out: bool = False
 
 
@@ -93,12 +94,16 @@ class BusMonitor:
             stats = self._ids[d.arbitration_id] = _IdStats(d.name, sender, None)
         stats.count += 1
         stats.last_seen = now
-        if stats.timed_out:
-            stats.timed_out = False
-            self.edges.append(self._edge("MESSAGE_RESTORED", d.arbitration_id, stats))
         if d.error is not None:
             stats.errors += 1
             self.errors_by_type[d.error.value] += 1
+        else:
+            # Only a valid frame proves the sender is alive: a rogue node's
+            # garbage under the same ID must not hide a timeout.
+            stats.last_valid = now
+            if stats.timed_out:
+                stats.timed_out = False
+                self.edges.append(self._edge("MESSAGE_RESTORED", d.arbitration_id, stats))
 
         self._window.append(_Seen(now, d.arbitration_id, sender, frame_bits(d.dlc)))
         self.frames.append(
@@ -118,9 +123,9 @@ class BusMonitor:
 
     def _check_timeouts(self, now: float) -> None:
         for arb_id, stats in self._ids.items():
-            if stats.cycle_s is None or stats.last_seen is None or stats.timed_out:
+            if stats.cycle_s is None or stats.last_valid is None or stats.timed_out:
                 continue
-            if now - stats.last_seen > TIMEOUT_CYCLES * stats.cycle_s:
+            if now - stats.last_valid > TIMEOUT_CYCLES * stats.cycle_s:
                 stats.timed_out = True
                 self.edges.append(self._edge("MESSAGE_TIMEOUT", arb_id, stats))
                 stats.timeouts += 1

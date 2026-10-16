@@ -123,6 +123,28 @@ def test_timeout_is_counted_once_and_clears_on_recovery(monitor, codec: CanCodec
     assert row["timeouts"] == 1
 
 
+def test_invalid_frames_do_not_keep_a_message_alive(monitor, codec: CanCodec) -> None:
+    m, tx = monitor
+    tx.send(
+        codec.encode(
+            "ENGINE_TEMPERATURE",
+            {"CoolantTemp": 90, "OilTemp": 95, "EngineDtc": 0, "EngineDtcCount": 0},
+        )
+    )
+    m.poll(0.0)
+
+    # A rogue node keeps sending a truncated frame with the same ID.
+    for step in range(1, 31):
+        tx.send(can.Message(arbitration_id=0x101, data=bytes(4), is_extended_id=False))
+        m.poll(step * 0.1)
+
+    row = next(r for r in m.stats(3.0)["per_id"] if r["id"] == 0x101)
+    assert row["timed_out"] is True
+    assert m.timeouts == 1  # timed out once, never "restored" by garbage
+    assert [e["event"] for e in m.edges] == ["MESSAGE_TIMEOUT"]
+    assert row["errors"] == 30
+
+
 def test_crashed_ecu_shows_up_as_timeouts(sim: Simulator, monkeypatch: pytest.MonkeyPatch) -> None:
     def explode(now: float) -> None:
         raise RuntimeError("simulated BCM fault")
