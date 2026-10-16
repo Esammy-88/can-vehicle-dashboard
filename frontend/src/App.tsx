@@ -1,14 +1,11 @@
-import { lazy, Suspense } from "react";
 import StatusIndicator from "./components/StatusIndicator";
 import { useHashRoute, type Route } from "./hooks/useHashRoute";
 import { useTelemetry } from "./hooks/useTelemetry";
 import CanMonitorPage from "./pages/CanMonitorPage";
 import DashboardPage from "./pages/DashboardPage";
 import DiagnosticsPage from "./pages/DiagnosticsPage";
+import GraphsPage from "./pages/GraphsPage";
 import LogsPage from "./pages/LogsPage";
-
-// Charts pull in Recharts; load them only when the Graphs tab is opened.
-const GraphsPage = lazy(() => import("./pages/GraphsPage"));
 
 const TABS: { route: Route; label: string }[] = [
   { route: "dashboard", label: "Dashboard" },
@@ -95,11 +92,7 @@ export default function App() {
       {route === "monitor" && <CanMonitorPage />}
       {route === "diagnostics" && <DiagnosticsPage snapshot={snapshot} events={telemetry.events} />}
       {route === "logs" && <LogsPage events={telemetry.events} />}
-      {route === "graphs" && (
-        <Suspense fallback={<p className="p-6 text-sm text-slate-500">Loading charts…</p>}>
-          <GraphsPage history={telemetry.history} />
-        </Suspense>
-      )}
+      {route === "graphs" && <GraphsPage history={telemetry.history} />}
     </div>
   );
 }

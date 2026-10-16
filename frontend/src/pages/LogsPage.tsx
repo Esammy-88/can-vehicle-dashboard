@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { controlTrace, getTraceStatus, listLogFiles } from "../services/api";
 import type { LogEvent, LogFile, Severity, TraceStatus } from "../types/api";
 import { formatSimTime } from "../utils/format";
@@ -81,7 +81,7 @@ function TracePanel() {
   );
 }
 
-export default function LogsPage({ events }: { events: LogEvent[] }) {
+function LogsPage({ events }: { events: LogEvent[] }) {
   const [severity, setSeverity] = useState<Severity | "ALL">("ALL");
   const [query, setQuery] = useState("");
 
@@ -173,3 +173,6 @@ export default function LogsPage({ events }: { events: LogEvent[] }) {
     </div>
   );
 }
+
+// Re-render only when new events arrive.
+export default memo(LogsPage);

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import TimeSeriesChart, { type Threshold } from "../components/TimeSeriesChart";
+import { memo, useMemo, useState } from "react";
+import TimeSeriesChart, { type Point, type Threshold } from "../components/TimeSeriesChart";
 import type { HistorySample } from "../types/api";
 
 const RANGES = [
@@ -8,7 +8,7 @@ const RANGES = [
   { seconds: 120, label: "2 min" },
   { seconds: 300, label: "5 min" },
 ];
-const MAX_POINTS = 300; // per chart; keeps rendering cheap at the 5-minute range
+const MAX_POINTS = 300; // per chart; keeps drawing cheap at the 5-minute range
 
 type Metric = Exclude<keyof HistorySample, "seq" | "t">;
 
@@ -68,14 +68,21 @@ const CHARTS: ChartSpec[] = [
   { metric: "can_rate", title: "CAN message rate", unit: "frames/s", yDomain: [0, "auto"] },
 ];
 
-export default function GraphsPage({ history }: { history: HistorySample[] }) {
+function GraphsPage({ history }: { history: HistorySample[] }) {
   const [range, setRange] = useState(60);
+  const [hoverT, setHoverT] = useState<number | null>(null);
 
   const end = history.length ? history[history.length - 1].t : 0;
   const start = end - range;
-  const visible = history.filter((s) => s.t >= start);
-  const stride = Math.max(1, Math.ceil(visible.length / MAX_POINTS));
-  const points = visible.filter((_, i) => i % stride === 0 || i === visible.length - 1);
+  // Recomputed only when a new sample arrives (5 Hz) or the range changes.
+  const series = useMemo(() => {
+    const visible = history.filter((s) => s.t >= start);
+    const stride = Math.max(1, Math.ceil(visible.length / MAX_POINTS));
+    const points = visible.filter((_, i) => i % stride === 0 || i === visible.length - 1);
+    return Object.fromEntries(
+      CHARTS.map((c) => [c.metric, points.map((s) => ({ t: s.t, value: s[c.metric] }))]),
+    ) as Record<Metric, Point[]>;
+  }, [history, start]);
 
   return (
     <div className="space-y-6 p-6">
@@ -119,7 +126,9 @@ export default function GraphsPage({ history }: { history: HistorySample[] }) {
               threshold={chart.threshold}
               digits={chart.digits}
               domain={[start, end]}
-              data={points.map((s) => ({ t: s.t, value: s[chart.metric] }))}
+              data={series[chart.metric]}
+              hoverT={hoverT}
+              onHover={setHoverT}
             />
           ))}
         </div>
@@ -127,3 +136,6 @@ export default function GraphsPage({ history }: { history: HistorySample[] }) {
     </div>
   );
 }
+
+// Re-render only when the history changes, not on every telemetry message.
+export default memo(GraphsPage);

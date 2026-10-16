@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import StatTile from "../components/StatTile";
 import { useCanStream } from "../hooks/useCanStream";
 import type { CanFrame, CanStats, IdStats } from "../types/api";
 import { formatSimTime, formatValue, hexId } from "../utils/format";
 
-const MAX_ROWS = 200;
+const MAX_ROWS = 100; // rendered rows; the 1000-frame buffer is still filtered
 const PROTECTION_SIGNALS = new Set(["AliveCounter", "Checksum"]);
 
 function Badge({ ok, label }: { ok: boolean; label: string }) {
@@ -53,19 +53,19 @@ function PerIdTable({ rows }: { rows: IdStats[] }) {
   return (
     <section className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/60 p-4">
       <h2 className="text-xs font-medium uppercase tracking-[0.15em] text-slate-400">Messages</h2>
-      <table className="mt-3 w-full text-sm">
+      <table className="mt-3 w-full min-w-[820px] table-fixed text-sm">
         <thead>
           <tr className="text-left text-xs text-slate-500">
-            <th className="py-1.5 pr-4 font-medium">ID</th>
+            <th className="w-16 py-1.5 pr-4 font-medium">ID</th>
             <th className="pr-4 font-medium">Message</th>
-            <th className="pr-4 font-medium">ECU</th>
-            <th className="pr-4 text-right font-medium">Cycle</th>
-            <th className="pr-4 text-right font-medium">Expected</th>
-            <th className="pr-4 text-right font-medium">Measured</th>
-            <th className="pr-4 text-right font-medium">Count</th>
-            <th className="pr-4 text-right font-medium">Errors</th>
-            <th className="pr-4 text-right font-medium">Last seen</th>
-            <th className="font-medium">Status</th>
+            <th className="w-14 pr-4 font-medium">ECU</th>
+            <th className="w-20 pr-4 text-right font-medium">Cycle</th>
+            <th className="w-20 pr-4 text-right font-medium">Expected</th>
+            <th className="w-20 pr-4 text-right font-medium">Measured</th>
+            <th className="w-20 pr-4 text-right font-medium">Count</th>
+            <th className="w-16 pr-4 text-right font-medium">Errors</th>
+            <th className="w-20 pr-4 text-right font-medium">Last seen</th>
+            <th className="w-28 font-medium">Status</th>
           </tr>
         </thead>
         <tbody className="tabular-nums">
@@ -75,7 +75,7 @@ function PerIdTable({ rows }: { rows: IdStats[] }) {
             return (
               <tr key={r.id} className="border-t border-slate-800/80 text-slate-300">
                 <td className="py-1.5 pr-4 font-mono text-slate-100">{hexId(r.id)}</td>
-                <td className="pr-4">{r.name ?? "unknown"}</td>
+                <td className="truncate pr-4">{r.name ?? "unknown"}</td>
                 <td className="pr-4">{r.sender}</td>
                 <td className="pr-4 text-right">{r.cycle_ms ? `${r.cycle_ms} ms` : "–"}</td>
                 <td className="pr-4 text-right">{expected === null ? "–" : `${expected.toFixed(0)}/s`}</td>
@@ -143,6 +143,34 @@ function Signals({ signals }: { signals: CanFrame["signals"] }) {
   );
 }
 
+// A frame never changes once received, so each row renders exactly once.
+const FrameRow = memo(function FrameRow({ frame: f }: { frame: CanFrame }) {
+  return (
+    <tr className="border-t border-slate-800/80 align-top">
+      <td className="whitespace-nowrap py-1.5 pr-4 font-mono text-xs text-slate-400">
+        {formatSimTime(f.t)}
+      </td>
+      <td className="pr-4 font-mono text-slate-100">{hexId(f.id)}</td>
+      <td className="truncate whitespace-nowrap pr-4 text-slate-300">{f.name ?? "unknown"}</td>
+      <td className="pr-4 text-slate-400">{f.sender}</td>
+      <td className="pr-4 text-slate-400">{f.dlc}</td>
+      <td className="whitespace-nowrap pr-4 font-mono text-xs text-slate-300">{f.data}</td>
+      <td className="pr-4">
+        <Signals signals={f.signals} />
+      </td>
+      <td className="whitespace-nowrap">
+        {f.error ? (
+          <span title={f.error_detail ?? undefined}>
+            <Badge ok={false} label={f.error} />
+          </span>
+        ) : (
+          <Badge ok label="OK" />
+        )}
+      </td>
+    </tr>
+  );
+});
+
 interface Filters {
   id: string;
   ecu: string;
@@ -164,7 +192,7 @@ function matches(frame: CanFrame, f: Filters): boolean {
 const SELECT =
   "rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200 focus:border-sky-500 focus:outline-none";
 
-export default function CanMonitorPage() {
+function CanMonitorPage() {
   const { connection, frames, stats } = useCanStream();
   const [frozen, setFrozen] = useState<CanFrame[] | null>(null);
   const [filters, setFilters] = useState<Filters>({ id: "", ecu: "ALL", message: "ALL", errorsOnly: false });
@@ -248,43 +276,22 @@ export default function CanMonitorPage() {
         </div>
 
         <div className="mt-3 max-h-[560px] overflow-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[1000px] table-fixed text-sm">
             <thead className="sticky top-0 bg-slate-900">
               <tr className="text-left text-xs text-slate-500">
-                <th className="py-1.5 pr-4 font-medium">Time</th>
-                <th className="pr-4 font-medium">CAN ID</th>
-                <th className="pr-4 font-medium">Message</th>
-                <th className="pr-4 font-medium">ECU</th>
-                <th className="pr-4 font-medium">DLC</th>
-                <th className="pr-4 font-medium">Data</th>
+                <th className="w-24 py-1.5 pr-4 font-medium">Time</th>
+                <th className="w-20 pr-4 font-medium">CAN ID</th>
+                <th className="w-48 pr-4 font-medium">Message</th>
+                <th className="w-16 pr-4 font-medium">ECU</th>
+                <th className="w-12 pr-4 font-medium">DLC</th>
+                <th className="w-52 pr-4 font-medium">Data</th>
                 <th className="pr-4 font-medium">Decoded signals</th>
-                <th className="font-medium">Status</th>
+                <th className="w-32 font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((f) => (
-                <tr key={f.seq} className="border-t border-slate-800/80 align-top">
-                  <td className="whitespace-nowrap py-1.5 pr-4 font-mono text-xs text-slate-400">
-                    {formatSimTime(f.t)}
-                  </td>
-                  <td className="pr-4 font-mono text-slate-100">{hexId(f.id)}</td>
-                  <td className="whitespace-nowrap pr-4 text-slate-300">{f.name ?? "unknown"}</td>
-                  <td className="pr-4 text-slate-400">{f.sender}</td>
-                  <td className="pr-4 text-slate-400">{f.dlc}</td>
-                  <td className="whitespace-nowrap pr-4 font-mono text-xs text-slate-300">{f.data}</td>
-                  <td className="pr-4">
-                    <Signals signals={f.signals} />
-                  </td>
-                  <td className="whitespace-nowrap">
-                    {f.error ? (
-                      <span title={f.error_detail ?? undefined}>
-                        <Badge ok={false} label={f.error} />
-                      </span>
-                    ) : (
-                      <Badge ok label="OK" />
-                    )}
-                  </td>
-                </tr>
+                <FrameRow key={f.seq} frame={f} />
               ))}
             </tbody>
           </table>
@@ -294,3 +301,6 @@ export default function CanMonitorPage() {
     </div>
   );
 }
+
+// No props: the page updates from its own CAN stream, not the 20 Hz telemetry.
+export default memo(CanMonitorPage);

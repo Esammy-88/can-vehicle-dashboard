@@ -79,31 +79,36 @@ export default function DiagnosticsPage({ snapshot, events }: { snapshot: Snapsh
   return (
     <div className="grid gap-6 p-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <div className="space-y-6">
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 2xl:grid-cols-2">
           <Panel title="ECU status">
-            <table className="w-full text-sm">
+            <table className="w-full table-fixed text-sm">
               <thead>
                 <tr className="text-left text-xs text-slate-500">
                   <th className="py-1.5 pr-3 font-medium">ECU</th>
-                  <th className="pr-3 font-medium">Status</th>
-                  <th className="pr-3 text-right font-medium">Last frame</th>
-                  <th className="pr-3 text-right font-medium">Timeouts</th>
-                  <th className="text-right font-medium" title="Repeated or skipped alive counters">
-                    Counter errs
+                  <th className="w-32 pr-3 font-medium">Status</th>
+                  <th className="w-28 whitespace-nowrap pr-3 text-right font-medium">Last frame</th>
+                  <th className="w-20 pr-3 text-right font-medium">Timeouts</th>
+                  <th
+                    className="w-32 whitespace-nowrap text-right font-medium"
+                    title="Repeated or skipped alive counters"
+                  >
+                    Counter errors
                   </th>
                 </tr>
               </thead>
               <tbody className="tabular-nums">
                 {d.ecus.map((e) => (
                   <tr key={e.node} className="border-t border-slate-800/80">
-                    <td className="py-2 pr-3">
-                      <div className="text-slate-100">{e.name}</div>
-                      <div className="text-xs text-slate-500">{e.last_message ?? "nothing received"}</div>
+                    <td className="truncate whitespace-nowrap py-2 pr-3">
+                      <div className="truncate text-slate-100">{e.name}</div>
+                      <div className="truncate text-xs text-slate-500">
+                        {e.last_message ?? "nothing received"}
+                      </div>
                     </td>
-                    <td className="pr-3">
+                    <td className="whitespace-nowrap pr-3">
                       <OnlineBadge online={e.online} />
                     </td>
-                    <td className="pr-3 text-right text-slate-300">
+                    <td className="whitespace-nowrap pr-3 text-right text-slate-300">
                       {e.last_seen_ago_s === null ? "never" : `${Math.round(e.last_seen_ago_s * 1000)} ms ago`}
                     </td>
                     <td className="pr-3 text-right text-slate-300">{e.timeouts}</td>
