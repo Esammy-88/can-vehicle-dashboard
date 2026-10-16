@@ -5,6 +5,83 @@ the single source of truth for IDs, signal layout, scaling and cycle times.
 All frames are classic CAN 2.0A: standard 11-bit identifiers, 8-byte payload,
 little-endian (Intel) signals.
 
+## The CAN frame
+
+A classic CAN data frame with an 11-bit identifier looks like this on the wire:
+
+```
+ SOF | Identifier | RTR | IDE | r0 | DLC  | Data       | CRC     | ACK | EOF
+  1  |    11      |  1  |  1  |  1 |  4   | 0–64 bits  | 15 + 1  |  2  |  7    (bits)
+```
+
+| Field | Meaning | In this project |
+|---|---|---|
+| **Identifier (CAN ID)** | Names the *message*, not the sender. It also sets the priority: lower is more important | `0x100`–`0x500`, one per message |
+| **RTR / IDE** | Remote request / extended (29-bit) ID flags | Always data frames with standard IDs |
+| **DLC** | Data Length Code: payload length, 0–8 bytes | Always 8; any other length is reported as `BAD_DLC` |
+| **Data (payload)** | Up to 8 bytes holding the *signals*, packed at bit positions given by the DBC | Signals, plus AliveCounter and Checksum in bytes 6–7 |
+| **CRC, ACK, EOF** | Transmission checks done by the CAN controller hardware | Handled by the bus layer, so not modelled |
+
+Header plus trailer come to 47 bits, so an 8-byte frame is
+`47 + 8 × 8 = 111` bits before bit stuffing. That is the figure the bus-load
+statistic uses.
+
+CAN has no addresses. Every node receives every frame and decides from the ID
+whether it cares. Which messages each ECU consumes is listed as the receivers
+of each signal in the DBC.
+
+## Arbitration
+
+When several nodes start transmitting at the same moment, they resolve it bit
+by bit while sending the identifier. A `0` bit is *dominant* and overrides a
+`1`. A node that sends `1` but reads back `0` has lost: it stops and retries
+after the frame. The lowest ID therefore always wins, and the winning frame is
+not damaged (non-destructive arbitration). This is why IDs are allocated by
+importance:
+
+| Range | Use | Why |
+|---|---|---|
+| `0x1xx` | Engine | Powertrain control data, highest priority |
+| `0x2xx` | Vehicle speed, transmission | Powertrain, consumed by the ECM and the cluster |
+| `0x3xx` | Body | Comfort and lighting, can tolerate delay |
+| `0x4xx` | Cluster status | Display only |
+| `0x5xx` | Diagnostics | Lowest priority, 1 Hz summary |
+
+The software bus delivers frames in the order they are sent. The simulator
+steps the ECUs in node order (ECM, TCM, BCM, IPC, DIAG), so frames due in the
+same tick go out in ID order, just as arbitration would order them on a real
+bus. On `vcan0`, the kernel does the same.
+
+## Message scheduling
+
+Every message is **cyclic**: it is sent at a fixed period, its DBC
+`GenMsgCycleTime`, whether or not its values changed. Receivers can then
+detect a missing sender from silence alone (see
+[fault-injection.md](fault-injection.md)). Each ECU keeps one transmit slot per
+message it owns:
+
+- On every 10 ms tick, a slot whose time has come encodes the current
+  signals, increments its alive counter and sends the frame. Then
+  `next_due += period`.
+- Periods are counted in simulation time, so a 50 ms message is sent
+  exactly every 5 ticks, with no drift and no jitter. Tests check measured
+  rates against the DBC.
+- If an ECU falls behind (paused, or rebooting after an `ECU_OFFLINE` fault),
+  the slot resynchronises instead of sending a burst of catch-up frames.
+
+| Period | Messages | Frames/s |
+|---|---|---|
+| 50 ms | VEHICLE_STATUS | 20 |
+| 100 ms | ENGINE_STATUS, TRANSMISSION_STATUS | 10 + 10 |
+| 200 ms | BODY_STATUS, DASHBOARD_STATUS | 5 + 5 |
+| 500 ms | ENGINE_TEMPERATURE | 2 |
+| 1000 ms | DIAGNOSTIC_STATUS | 1 |
+| | **Total** | **53** |
+
+The fast messages are the ones control loops depend on: speed for the ECM
+and the cluster, RPM and throttle for the TCM's shift logic. Temperatures
+change slowly, so 2 Hz is plenty.
+
 ## Nodes
 
 | Node | ECU |
@@ -90,10 +167,12 @@ own bus instance and computes, over a sliding 1 s window of simulation time:
 - messages per second, overall, per CAN ID and per sending ECU;
 - **bus load** = bits on the wire per second / 500 kbit/s, where a standard
   data frame is `47 + 8 × DLC` bits (bit stuffing ignored). The full network is
-  52 frames/s × 111 bits ≈ 5.8 kbit/s, about 1.2 % load;
+  53 frames/s × 111 bits ≈ 5.9 kbit/s, about 1.2 % load;
 - error counts by decode error type;
-- **timeouts**: a message counts one timeout when it has been missing for more
-  than 3 of its DBC cycle times, and clears when it is seen again;
+- **timeouts**: a message counts one timeout when no *valid* frame has arrived
+  for more than 3 of its DBC cycle times, and clears when a valid one is seen
+  again. Corrupted frames under the same ID count as errors but don't keep
+  the message alive, so a rogue node can't mask a dead ECU;
 - active nodes: ECUs heard within the window.
 
 ## Bus backends

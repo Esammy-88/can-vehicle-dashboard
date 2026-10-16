@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import DemoBanner from "./components/DemoBanner";
 import StatusIndicator from "./components/StatusIndicator";
 import { useHashRoute, type Route } from "./hooks/useHashRoute";
@@ -21,6 +22,11 @@ export default function App() {
   const telemetry = useTelemetry();
   const { connection, snapshot } = telemetry;
   const route = useHashRoute();
+  const page = TABS.find((tab) => tab.route === route)?.label;
+
+  useEffect(() => {
+    document.title = `${page} · CAN Vehicle Dashboard`;
+  }, [page]);
 
   return (
     <div className="min-h-full">

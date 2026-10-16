@@ -115,7 +115,8 @@ function GraphsPage({ history }: { history: HistorySample[] }) {
       {history.length === 0 ? (
         <p className="text-sm text-slate-500">Waiting for data…</p>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2 lg:[&>:last-child:nth-child(odd)]:col-span-2">
+          {/* An odd chart out spans the full width instead of leaving a gap. */}
           {CHARTS.map((chart) => (
             <TimeSeriesChart
               key={chart.metric}

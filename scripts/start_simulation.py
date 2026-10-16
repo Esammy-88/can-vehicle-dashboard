@@ -62,9 +62,8 @@ def drive_ticks(sim: Simulator) -> Iterator[str]:
             yield label
 
 
-def demo_ticks(sim: Simulator) -> Iterator[str]:
+def demo_ticks(director: DemoDirector) -> Iterator[str]:
     """The Demo Mode director, announcing each step as it starts."""
-    director = DemoDirector(sim)
     shown = -1
     while director.active:
         if director.index != shown:
@@ -93,7 +92,8 @@ def main() -> None:
     with Simulator(factory, codec) as sim:
         print(HEADER)
         deadline = time.perf_counter()
-        ticks = demo_ticks(sim) if args.demo else drive_ticks(sim)
+        director = DemoDirector(sim) if args.demo else None
+        ticks = demo_ticks(director) if director else drive_ticks(sim)
         for tick, label in enumerate(ticks):
             sim.step()
             while (frame := sniffer.recv(timeout=0)) is not None:
@@ -112,6 +112,8 @@ def main() -> None:
     print(f"\nCAN traffic over {elapsed:.0f} s of simulated time:")
     for name, n in sorted(counts.items()):
         print(f"  {name:<20} {n:6d} frames  {n / elapsed:5.1f} /s")
+    if director and director.timed_out:
+        sys.exit(f"\nDemo steps that timed out: {', '.join(director.timed_out)}")
 
 
 def print_row(t: float, label: str, latest: dict[str, dict]) -> None:

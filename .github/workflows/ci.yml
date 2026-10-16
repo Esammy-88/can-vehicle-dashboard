@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Test
+        # No vcan0 here: the backend falls back to the software CAN bus and
+        # the SocketCAN integration tests are skipped (the socketcan job runs them).
+        run: pytest -rs
+
+  socketcan:
+    name: Backend on Linux SocketCAN (vcan0)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Create vcan0
+        run: |
+          # The vcan module ships in the extra modules package on the runner's kernel.
+          sudo apt-get update -q
+          sudo apt-get install -y -q "linux-modules-extra-$(uname -r)"
+          bash scripts/setup_vcan.sh
+      - name: SocketCAN integration tests
+        env:
+          CAN_TEST_REQUIRED: "1"
+        run: pytest -rs backend/tests/test_socketcan.py
+      - name: Headless demo over vcan0
+        env:
+          CAN_MODE: socketcan
+        # Real time (about 2 minutes), as the backend runs; fails if a step times out.
+        run: python scripts/start_simulation.py --demo
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Type-check and build
+        run: npm run build
