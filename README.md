@@ -42,6 +42,12 @@ npm install
 
 ## Running
 
+**Windows, one click:** double-click `start-dev.cmd` in the project folder. It
+opens the backend and the frontend in two separate windows (keep both open)
+and then the dashboard in your browser.
+
+Or start them yourself:
+
 Start the backend (from the repository root):
 
 ```bash
