@@ -315,7 +315,7 @@ The whole run takes about 2 minutes at 1× and is identical every time. See
 
 ## Authors
 
-Anyangwe Achaki and Sammy EyongOrock.
+Sammy Eyong Orock.
 
 ## License
 
