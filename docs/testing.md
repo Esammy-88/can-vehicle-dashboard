@@ -8,8 +8,8 @@ cd frontend && npm run build   # strict TypeScript type-check + production build
 ```
 
 CI runs all of these on every push and pull request
-([.github/workflows/ci.yml](../.github/workflows/ci.yml)), on Python 3.11 and
-3.12. A separate job creates a real `vcan0` and runs the SocketCAN tests and
+([.github/workflows/ci.yml](../.github/workflows/ci.yml)), on Python 3.11 to
+3.14. A separate job creates a real `vcan0` and runs the SocketCAN tests and
 the full demo over it.
 
 ## Strategy

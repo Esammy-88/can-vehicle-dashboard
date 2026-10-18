@@ -236,8 +236,13 @@ cd frontend && npm run build   # strict type-check + production build
 **Results:** 172 tests pass, plus 3 SocketCAN tests that run on Linux when
 `vcan0` exists. Backend line coverage is about 98 %. CI
 ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs lint and tests on
-Python 3.11 and 3.12 and builds the frontend. A separate job creates a real
+Python 3.11 to 3.14 and builds the frontend. A separate job creates a real
 `vcan0` and runs the SocketCAN tests and the full demo over it.
+
+The project has also been verified by hand on a fresh Ubuntu live system
+(Python 3.14): installed from this README, all 175 tests passed (none skipped)
+and the dashboard ran on `vcan0`, with its traffic visible in `candump` and
+Wireshark.
 
 The simulation runs in simulated time, so tests drive minutes of driving in
 milliseconds and give the same result every time. The strategy, layer by
