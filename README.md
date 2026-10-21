@@ -1,6 +1,6 @@
 # CAN Bus Vehicle Dashboard
 
-[![CI](https://github.com/Anyangwe/can-vehicle-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/Anyangwe/can-vehicle-dashboard/actions/workflows/ci.yml)
+[![CI](https://github.com/Esammy-88/can-vehicle-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/Esammy-88/can-vehicle-dashboard/actions/workflows/ci.yml)
 
 A software-in-the-loop simulation of a small vehicle CAN network with a live
 web dashboard. Five simulated ECUs drive a physics model of a car and talk to
@@ -124,7 +124,7 @@ scaling are in [docs/can-protocol.md](docs/can-protocol.md).
 Prerequisites: **Python 3.11+**, **Node.js 20.19+** (22 recommended) and Git.
 
 ```bash
-git clone https://github.com/Anyangwe/can-vehicle-dashboard.git
+git clone https://github.com/Esammy-88/can-vehicle-dashboard.git
 cd can-vehicle-dashboard
 
 # Backend

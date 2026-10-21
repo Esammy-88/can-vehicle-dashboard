@@ -8,7 +8,7 @@ Prerequisites: Python 3.11+, Node.js 20.19+ (22 recommended), Git. Linux is
 optional; you only need it for SocketCAN.
 
 ```bash
-git clone https://github.com/Anyangwe/can-vehicle-dashboard.git
+git clone https://github.com/Esammy-88/can-vehicle-dashboard.git
 cd can-vehicle-dashboard
 
 python -m venv .venv
