@@ -38,7 +38,8 @@ jobs:
 
   socketcan:
     name: Backend on Linux SocketCAN (vcan0)
-    runs-on: ubuntu-latest
+    # Pinned: the vcan kernel module setup below is proven on this image.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -50,9 +51,11 @@ jobs:
         run: pip install -r requirements-dev.txt
       - name: Create vcan0
         run: |
-          # The vcan module ships in the extra modules package on the runner's kernel.
-          sudo apt-get update -q
-          sudo apt-get install -y -q "linux-modules-extra-$(uname -r)"
+          # vcan may be built in; otherwise it ships in the kernel's extra modules package.
+          if ! sudo modprobe vcan 2>/dev/null; then
+            sudo apt-get update -q
+            sudo apt-get install -y -q "linux-modules-extra-$(uname -r)"
+          fi
           bash scripts/setup_vcan.sh
       - name: SocketCAN integration tests
         env:
