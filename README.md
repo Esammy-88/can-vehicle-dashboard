@@ -320,7 +320,7 @@ The whole run takes about 2 minutes at 1× and is identical every time. See
 
 ## Authors
 
-Sammy Eyong Orock.
+Sammy Eyongorock.
 
 ## License
 
